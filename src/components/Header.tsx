@@ -187,8 +187,7 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="flex items-center gap-1 md:gap-3 min-w-0">
         {/* Search Bar (>= lg) */}
         <div className="relative hidden lg:block w-60 shrink-0">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
-          <input
+<Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />          <input
             type="text"
             placeholder="Buscar contacto, tag, teléfono..."
             value={searchQuery}
