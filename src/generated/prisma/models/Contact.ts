@@ -91,6 +91,7 @@ export type ContactCountAggregateOutputType = {
   stage: number
   dealValue: number
   notes: number
+  tags: number
   location: number
   company: number
   customFields: number
@@ -167,6 +168,7 @@ export type ContactCountAggregateInputType = {
   stage?: true
   dealValue?: true
   notes?: true
+  tags?: true
   location?: true
   company?: true
   customFields?: true
@@ -276,6 +278,7 @@ export type ContactGroupByOutputType = {
   stage: string
   dealValue: number
   notes: string
+  tags: string[]
   location: string | null
   company: string | null
   customFields: runtime.JsonValue
@@ -321,6 +324,7 @@ export type ContactWhereInput = {
   stage?: Prisma.StringFilter<"Contact"> | string
   dealValue?: Prisma.FloatFilter<"Contact"> | number
   notes?: Prisma.StringFilter<"Contact"> | string
+  tags?: Prisma.StringNullableListFilter<"Contact">
   location?: Prisma.StringNullableFilter<"Contact"> | string | null
   company?: Prisma.StringNullableFilter<"Contact"> | string | null
   customFields?: Prisma.JsonFilter<"Contact">
@@ -347,6 +351,7 @@ export type ContactOrderByWithRelationInput = {
   stage?: Prisma.SortOrder
   dealValue?: Prisma.SortOrder
   notes?: Prisma.SortOrder
+  tags?: Prisma.SortOrder
   location?: Prisma.SortOrderInput | Prisma.SortOrder
   company?: Prisma.SortOrderInput | Prisma.SortOrder
   customFields?: Prisma.SortOrder
@@ -376,6 +381,7 @@ export type ContactWhereUniqueInput = Prisma.AtLeast<{
   stage?: Prisma.StringFilter<"Contact"> | string
   dealValue?: Prisma.FloatFilter<"Contact"> | number
   notes?: Prisma.StringFilter<"Contact"> | string
+  tags?: Prisma.StringNullableListFilter<"Contact">
   location?: Prisma.StringNullableFilter<"Contact"> | string | null
   company?: Prisma.StringNullableFilter<"Contact"> | string | null
   customFields?: Prisma.JsonFilter<"Contact">
@@ -402,6 +408,7 @@ export type ContactOrderByWithAggregationInput = {
   stage?: Prisma.SortOrder
   dealValue?: Prisma.SortOrder
   notes?: Prisma.SortOrder
+  tags?: Prisma.SortOrder
   location?: Prisma.SortOrderInput | Prisma.SortOrder
   company?: Prisma.SortOrderInput | Prisma.SortOrder
   customFields?: Prisma.SortOrder
@@ -432,6 +439,7 @@ export type ContactScalarWhereWithAggregatesInput = {
   stage?: Prisma.StringWithAggregatesFilter<"Contact"> | string
   dealValue?: Prisma.FloatWithAggregatesFilter<"Contact"> | number
   notes?: Prisma.StringWithAggregatesFilter<"Contact"> | string
+  tags?: Prisma.StringNullableListFilter<"Contact">
   location?: Prisma.StringNullableWithAggregatesFilter<"Contact"> | string | null
   company?: Prisma.StringNullableWithAggregatesFilter<"Contact"> | string | null
   customFields?: Prisma.JsonWithAggregatesFilter<"Contact">
@@ -454,6 +462,7 @@ export type ContactCreateInput = {
   stage?: string
   dealValue?: number
   notes?: string
+  tags?: Prisma.ContactCreatetagsInput | string[]
   location?: string | null
   company?: string | null
   customFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -480,6 +489,7 @@ export type ContactUncheckedCreateInput = {
   stage?: string
   dealValue?: number
   notes?: string
+  tags?: Prisma.ContactCreatetagsInput | string[]
   location?: string | null
   company?: string | null
   customFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -506,6 +516,7 @@ export type ContactUpdateInput = {
   stage?: Prisma.StringFieldUpdateOperationsInput | string
   dealValue?: Prisma.FloatFieldUpdateOperationsInput | number
   notes?: Prisma.StringFieldUpdateOperationsInput | string
+  tags?: Prisma.ContactUpdatetagsInput | string[]
   location?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   company?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -532,6 +543,7 @@ export type ContactUncheckedUpdateInput = {
   stage?: Prisma.StringFieldUpdateOperationsInput | string
   dealValue?: Prisma.FloatFieldUpdateOperationsInput | number
   notes?: Prisma.StringFieldUpdateOperationsInput | string
+  tags?: Prisma.ContactUpdatetagsInput | string[]
   location?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   company?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -558,6 +570,7 @@ export type ContactCreateManyInput = {
   stage?: string
   dealValue?: number
   notes?: string
+  tags?: Prisma.ContactCreatetagsInput | string[]
   location?: string | null
   company?: string | null
   customFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -580,6 +593,7 @@ export type ContactUpdateManyMutationInput = {
   stage?: Prisma.StringFieldUpdateOperationsInput | string
   dealValue?: Prisma.FloatFieldUpdateOperationsInput | number
   notes?: Prisma.StringFieldUpdateOperationsInput | string
+  tags?: Prisma.ContactUpdatetagsInput | string[]
   location?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   company?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -602,6 +616,7 @@ export type ContactUncheckedUpdateManyInput = {
   stage?: Prisma.StringFieldUpdateOperationsInput | string
   dealValue?: Prisma.FloatFieldUpdateOperationsInput | number
   notes?: Prisma.StringFieldUpdateOperationsInput | string
+  tags?: Prisma.ContactUpdatetagsInput | string[]
   location?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   company?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -624,6 +639,7 @@ export type ContactCountOrderByAggregateInput = {
   stage?: Prisma.SortOrder
   dealValue?: Prisma.SortOrder
   notes?: Prisma.SortOrder
+  tags?: Prisma.SortOrder
   location?: Prisma.SortOrder
   company?: Prisma.SortOrder
   customFields?: Prisma.SortOrder
@@ -690,6 +706,10 @@ export type ContactScalarRelationFilter = {
   isNot?: Prisma.ContactWhereInput
 }
 
+export type ContactCreatetagsInput = {
+  set: string[]
+}
+
 export type IntFieldUpdateOperationsInput = {
   set?: number
   increment?: number
@@ -704,6 +724,11 @@ export type FloatFieldUpdateOperationsInput = {
   decrement?: number
   multiply?: number
   divide?: number
+}
+
+export type ContactUpdatetagsInput = {
+  set?: string[]
+  push?: string | string[]
 }
 
 export type BoolFieldUpdateOperationsInput = {
@@ -779,6 +804,7 @@ export type ContactCreateWithoutContactTagsInput = {
   stage?: string
   dealValue?: number
   notes?: string
+  tags?: Prisma.ContactCreatetagsInput | string[]
   location?: string | null
   company?: string | null
   customFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -804,6 +830,7 @@ export type ContactUncheckedCreateWithoutContactTagsInput = {
   stage?: string
   dealValue?: number
   notes?: string
+  tags?: Prisma.ContactCreatetagsInput | string[]
   location?: string | null
   company?: string | null
   customFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -845,6 +872,7 @@ export type ContactUpdateWithoutContactTagsInput = {
   stage?: Prisma.StringFieldUpdateOperationsInput | string
   dealValue?: Prisma.FloatFieldUpdateOperationsInput | number
   notes?: Prisma.StringFieldUpdateOperationsInput | string
+  tags?: Prisma.ContactUpdatetagsInput | string[]
   location?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   company?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -870,6 +898,7 @@ export type ContactUncheckedUpdateWithoutContactTagsInput = {
   stage?: Prisma.StringFieldUpdateOperationsInput | string
   dealValue?: Prisma.FloatFieldUpdateOperationsInput | number
   notes?: Prisma.StringFieldUpdateOperationsInput | string
+  tags?: Prisma.ContactUpdatetagsInput | string[]
   location?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   company?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -895,6 +924,7 @@ export type ContactCreateWithoutInteractionsInput = {
   stage?: string
   dealValue?: number
   notes?: string
+  tags?: Prisma.ContactCreatetagsInput | string[]
   location?: string | null
   company?: string | null
   customFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -920,6 +950,7 @@ export type ContactUncheckedCreateWithoutInteractionsInput = {
   stage?: string
   dealValue?: number
   notes?: string
+  tags?: Prisma.ContactCreatetagsInput | string[]
   location?: string | null
   company?: string | null
   customFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -961,6 +992,7 @@ export type ContactUpdateWithoutInteractionsInput = {
   stage?: Prisma.StringFieldUpdateOperationsInput | string
   dealValue?: Prisma.FloatFieldUpdateOperationsInput | number
   notes?: Prisma.StringFieldUpdateOperationsInput | string
+  tags?: Prisma.ContactUpdatetagsInput | string[]
   location?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   company?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -986,6 +1018,7 @@ export type ContactUncheckedUpdateWithoutInteractionsInput = {
   stage?: Prisma.StringFieldUpdateOperationsInput | string
   dealValue?: Prisma.FloatFieldUpdateOperationsInput | number
   notes?: Prisma.StringFieldUpdateOperationsInput | string
+  tags?: Prisma.ContactUpdatetagsInput | string[]
   location?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   company?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -1011,6 +1044,7 @@ export type ContactCreateWithoutConversationsInput = {
   stage?: string
   dealValue?: number
   notes?: string
+  tags?: Prisma.ContactCreatetagsInput | string[]
   location?: string | null
   company?: string | null
   customFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -1036,6 +1070,7 @@ export type ContactUncheckedCreateWithoutConversationsInput = {
   stage?: string
   dealValue?: number
   notes?: string
+  tags?: Prisma.ContactCreatetagsInput | string[]
   location?: string | null
   company?: string | null
   customFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -1077,6 +1112,7 @@ export type ContactUpdateWithoutConversationsInput = {
   stage?: Prisma.StringFieldUpdateOperationsInput | string
   dealValue?: Prisma.FloatFieldUpdateOperationsInput | number
   notes?: Prisma.StringFieldUpdateOperationsInput | string
+  tags?: Prisma.ContactUpdatetagsInput | string[]
   location?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   company?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -1102,6 +1138,7 @@ export type ContactUncheckedUpdateWithoutConversationsInput = {
   stage?: Prisma.StringFieldUpdateOperationsInput | string
   dealValue?: Prisma.FloatFieldUpdateOperationsInput | number
   notes?: Prisma.StringFieldUpdateOperationsInput | string
+  tags?: Prisma.ContactUpdatetagsInput | string[]
   location?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   company?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -1127,6 +1164,7 @@ export type ContactCreateWithoutCampaignSendsInput = {
   stage?: string
   dealValue?: number
   notes?: string
+  tags?: Prisma.ContactCreatetagsInput | string[]
   location?: string | null
   company?: string | null
   customFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -1152,6 +1190,7 @@ export type ContactUncheckedCreateWithoutCampaignSendsInput = {
   stage?: string
   dealValue?: number
   notes?: string
+  tags?: Prisma.ContactCreatetagsInput | string[]
   location?: string | null
   company?: string | null
   customFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -1193,6 +1232,7 @@ export type ContactUpdateWithoutCampaignSendsInput = {
   stage?: Prisma.StringFieldUpdateOperationsInput | string
   dealValue?: Prisma.FloatFieldUpdateOperationsInput | number
   notes?: Prisma.StringFieldUpdateOperationsInput | string
+  tags?: Prisma.ContactUpdatetagsInput | string[]
   location?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   company?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -1218,6 +1258,7 @@ export type ContactUncheckedUpdateWithoutCampaignSendsInput = {
   stage?: Prisma.StringFieldUpdateOperationsInput | string
   dealValue?: Prisma.FloatFieldUpdateOperationsInput | number
   notes?: Prisma.StringFieldUpdateOperationsInput | string
+  tags?: Prisma.ContactUpdatetagsInput | string[]
   location?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   company?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -1292,6 +1333,7 @@ export type ContactSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   stage?: boolean
   dealValue?: boolean
   notes?: boolean
+  tags?: boolean
   location?: boolean
   company?: boolean
   customFields?: boolean
@@ -1319,6 +1361,7 @@ export type ContactSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   stage?: boolean
   dealValue?: boolean
   notes?: boolean
+  tags?: boolean
   location?: boolean
   company?: boolean
   customFields?: boolean
@@ -1341,6 +1384,7 @@ export type ContactSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   stage?: boolean
   dealValue?: boolean
   notes?: boolean
+  tags?: boolean
   location?: boolean
   company?: boolean
   customFields?: boolean
@@ -1363,6 +1407,7 @@ export type ContactSelectScalar = {
   stage?: boolean
   dealValue?: boolean
   notes?: boolean
+  tags?: boolean
   location?: boolean
   company?: boolean
   customFields?: boolean
@@ -1372,7 +1417,7 @@ export type ContactSelectScalar = {
   updatedAt?: boolean
 }
 
-export type ContactOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "avatarUrl" | "handle" | "phone" | "email" | "channel" | "sentiment" | "leadScore" | "stage" | "dealValue" | "notes" | "location" | "company" | "customFields" | "lastActive" | "optedOut" | "createdAt" | "updatedAt", ExtArgs["result"]["contact"]>
+export type ContactOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "avatarUrl" | "handle" | "phone" | "email" | "channel" | "sentiment" | "leadScore" | "stage" | "dealValue" | "notes" | "tags" | "location" | "company" | "customFields" | "lastActive" | "optedOut" | "createdAt" | "updatedAt", ExtArgs["result"]["contact"]>
 export type ContactInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   contactTags?: boolean | Prisma.Contact$contactTagsArgs<ExtArgs>
   interactions?: boolean | Prisma.Contact$interactionsArgs<ExtArgs>
@@ -1404,6 +1449,7 @@ export type $ContactPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     stage: string
     dealValue: number
     notes: string
+    tags: string[]
     location: string | null
     company: string | null
     customFields: runtime.JsonValue
@@ -1850,6 +1896,7 @@ export interface ContactFieldRefs {
   readonly stage: Prisma.FieldRef<"Contact", 'String'>
   readonly dealValue: Prisma.FieldRef<"Contact", 'Float'>
   readonly notes: Prisma.FieldRef<"Contact", 'String'>
+  readonly tags: Prisma.FieldRef<"Contact", 'String[]'>
   readonly location: Prisma.FieldRef<"Contact", 'String'>
   readonly company: Prisma.FieldRef<"Contact", 'String'>
   readonly customFields: Prisma.FieldRef<"Contact", 'Json'>

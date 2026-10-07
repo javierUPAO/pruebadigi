@@ -86,6 +86,7 @@ model Contact {
   stage         String              @default("lead")
   dealValue     Float               @default(0) @map("deal_value")
   notes         String              @default("")
+  tags          String[]            @default([])
   location      String?
   company       String?
   // Esquema dinamico por contacto (equivalente al custom_fields NoSQL del diagrama).
