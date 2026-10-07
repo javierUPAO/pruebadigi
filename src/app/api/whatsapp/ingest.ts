@@ -184,10 +184,6 @@ export async function handleIncomingPayload(
     let isNewContact = false;
     if (!contact) {
       const initialTags = referralTag ? [referralTag] : [];
-      console.log(
-        `[TAGS][CREAR] Contacto NUEVO. Tags a insertar:`,
-        initialTags,
-      );
 
       // Crear nuevo contacto
       // Si es LID y no tenemos número resuelto, guardar el LID como handle
@@ -232,12 +228,7 @@ export async function handleIncomingPayload(
         }
       }
     } else {
-      console.log(
-        `[TAGS][EXISTENTE] Contacto encontrado en DB (${contact.id}). Tags actuales en DB:`,
-        contact.tags,
-      );
       // Si el mensaje trae una referencia publicitaria y el contacto no la tiene, agrégala
-      console.log("Incoming message referralTag:", referralTag);
       // Si el mensaje actual trae un Ref y el contacto aún no tiene ese tag
       if (referralTag) {
         const currentTags: string[] = Array.isArray(contact.tags)
