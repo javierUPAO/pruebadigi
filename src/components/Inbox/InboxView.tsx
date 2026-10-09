@@ -92,6 +92,23 @@ interface CollapsibleSectionProps {
   bgClassName?: string;
 }
 
+const getReferencedChannels = (text: string): SocialChannel[] => {
+  if (!text) return [];
+  const match = text.match(/\[Ref:\s*([A-Za-z])/i);
+  if (!match) return [];
+
+  const prefix = match[1].toUpperCase();
+  const channels: SocialChannel[] = [];
+
+  if (prefix === "F") {
+    channels.push("messenger");
+  } else if (prefix === "I") {
+    channels.push("instagram");
+  }
+
+  return channels;
+};
+
 const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
   sectionKey,
   title,
@@ -231,7 +248,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
   }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); // o 'auto' para salto inmediato
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [activeMessages]);
 
   const [isVoiceNoteLoading, setIsVoiceNoteLoading] = useState<boolean>(false);
@@ -263,8 +280,22 @@ export const InboxView: React.FC<InboxViewProps> = ({
   };
 
   const filteredConversations = conversations.filter((c) => {
+    const refChannels = getReferencedChannels(c.lastMessage);
+    const hasFbTag =
+      c.contact.tags?.includes("Facebook Lead") ||
+      refChannels.includes("messenger");
+    const hasIgTag =
+      c.contact.tags?.includes("Instagram Lead") ||
+      refChannels.includes("instagram");
+
     const matchesChannel =
-      channelFilter === "all" || c.channel === channelFilter;
+      channelFilter === "all" ||
+      c.channel === channelFilter ||
+      (channelFilter === "messenger" &&
+        (hasFbTag || c.channel === "messenger")) ||
+      (channelFilter === "instagram" &&
+        (hasIgTag || c.channel === "instagram"));
+
     const matchesSearch =
       !searchQuery ||
       c.contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -272,6 +303,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
       c.contact.tags.some((t) =>
         t.toLowerCase().includes(searchQuery.toLowerCase()),
       );
+
     return matchesChannel && matchesSearch;
   });
 
@@ -447,30 +479,50 @@ export const InboxView: React.FC<InboxViewProps> = ({
     }
   };
 
-  const getChannelBadge = (ch: SocialChannel) => {
+  const getChannelBadge = (
+    ch: SocialChannel,
+    lastMessageText?: string,
+    contactTags: string[] = [],
+  ) => {
+    const refChannels = lastMessageText
+      ? getReferencedChannels(lastMessageText)
+      : [];
+    const isFromFbAd =
+      contactTags.includes("Facebook Lead") ||
+      refChannels.includes("messenger");
+    const isFromIgAd =
+      contactTags.includes("Instagram Lead") ||
+      refChannels.includes("instagram");
+
     switch (ch) {
       case "whatsapp":
         return (
-          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-300 font-extrabold rounded-full text-[10px] flex items-center gap-1 shadow-2xs">
-            <MessageCircle className="w-2.5 h-2.5" /> WhatsApp
+          <div className="flex items-center gap-1">
+            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-300 font-extrabold rounded-full text-[10px] flex items-center gap-1 shadow-2xs">
+              <MessageCircle className="w-2.5 h-2.5" /> WhatsApp
+            </span>
+            {isFromFbAd && (
+              <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-300 font-black rounded-md text-[9px] flex items-center gap-0.5">
+                <MessageSquare className="w-2 h-2" /> Vía Facebook
+              </span>
+            )}
+            {isFromIgAd && (
+              <span className="px-1.5 py-0.5 bg-pink-50 text-pink-700 border border-pink-300 font-black rounded-md text-[9px] flex items-center gap-0.5">
+                <Instagram className="w-2 h-2" /> Vía Instagram
+              </span>
+            )}
+          </div>
+        );
+      case "messenger":
+        return (
+          <span className="px-2 py-0.5 bg-blue-50 text-blue-800 border border-blue-300 font-extrabold rounded-full text-[10px] flex items-center gap-1 shadow-2xs">
+            <MessageSquare className="w-2.5 h-2.5" /> Facebook
           </span>
         );
       case "instagram":
         return (
           <span className="px-2 py-0.5 bg-pink-50 text-pink-800 border border-pink-300 font-extrabold rounded-full text-[10px] flex items-center gap-1 shadow-2xs">
             <Instagram className="w-2.5 h-2.5" /> Instagram
-          </span>
-        );
-      case "twitter":
-        return (
-          <span className="px-2 py-0.5 bg-sky-50 text-sky-800 border border-sky-300 font-extrabold rounded-full text-[10px] flex items-center gap-1 shadow-2xs">
-            <Twitter className="w-2.5 h-2.5" /> X / Twitter
-          </span>
-        );
-      case "messenger":
-        return (
-          <span className="px-2 py-0.5 bg-blue-50 text-blue-800 border border-blue-300 font-extrabold rounded-full text-[10px] flex items-center gap-1 shadow-2xs">
-            <MessageSquare className="w-2.5 h-2.5" /> Messenger
           </span>
         );
       default:
@@ -511,6 +563,23 @@ export const InboxView: React.FC<InboxViewProps> = ({
     }
   };
 
+  const activeRefChannels = activeConv
+    ? getReferencedChannels(activeConv.lastMessage)
+    : [];
+  const isActiveFbAd =
+    contact?.tags?.includes("Facebook Lead") ||
+    activeRefChannels.includes("messenger");
+  const isActiveIgAd =
+    contact?.tags?.includes("Instagram Lead") ||
+    activeRefChannels.includes("instagram");
+
+  const channelDisplayName = isActiveFbAd
+    ? "Facebook"
+    : isActiveIgAd
+      ? "Instagram"
+      : contact?.channel === "messenger"
+        ? "Facebook"
+        : contact?.channel || "WhatsApp";
   return (
     <div className="flex-1 flex overflow-hidden bg-slate-100 font-sans">
       {/* COLUMN 1: Conversation List & Filters */}
@@ -563,15 +632,15 @@ export const InboxView: React.FC<InboxViewProps> = ({
               </span>
             </button>
             <button
-              onClick={() => setChannelFilter("twitter")}
+              onClick={() => setChannelFilter("messenger")}
               className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap cursor-pointer transition-all ${
-                channelFilter === "twitter"
-                  ? "bg-sky-600 text-white shadow-sm shadow-sky-700/20 scale-102"
-                  : "text-sky-700 bg-sky-50/60 hover:bg-sky-100 border border-sky-200/60"
+                channelFilter === "messenger"
+                  ? "bg-blue-600 text-white shadow-sm shadow-blue-700/20 scale-102"
+                  : "text-blue-700 bg-blue-50/60 hover:bg-blue-100 border border-blue-200/60"
               }`}
             >
               <span className="inline-flex items-center gap-1">
-                <Twitter className="w-3 h-3" /> X / Twitter
+                <MessageSquare className="w-3 h-3" /> Facebook
               </span>
             </button>
           </div>
@@ -586,6 +655,14 @@ export const InboxView: React.FC<InboxViewProps> = ({
           ) : (
             filteredConversations.map((conv) => {
               const isSelected = activeConv && activeConv.id === conv.id;
+              const refChannels = getReferencedChannels(conv.lastMessage);
+              const isFbAd =
+                conv.contact.tags?.includes("Facebook Lead") ||
+                refChannels.includes("messenger");
+              const isIgAd =
+                conv.contact.tags?.includes("Instagram Lead") ||
+                refChannels.includes("instagram");
+
               return (
                 <div
                   key={conv.id}
@@ -608,24 +685,36 @@ export const InboxView: React.FC<InboxViewProps> = ({
                       alt={conv.contact.name}
                       className="w-11 h-11 rounded-2xl object-cover border border-slate-200 shadow-2xs"
                     />
+
+                    {/* Badge del canal en la esquina de la foto */}
                     <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow-2xs border border-slate-100">
-                      {conv.channel === "whatsapp" ? (
-                        <MessageCircle className="w-2.5 h-2.5 text-emerald-600" />
-                      ) : conv.channel === "instagram" ? (
-                        <Instagram className="w-2.5 h-2.5 text-pink-600" />
-                      ) : conv.channel === "twitter" ? (
-                        <Twitter className="w-2.5 h-2.5 text-sky-600" />
-                      ) : (
+                      {isFbAd || conv.channel === "messenger" ? (
                         <MessageSquare className="w-2.5 h-2.5 text-blue-600" />
+                      ) : isIgAd || conv.channel === "instagram" ? (
+                        <Instagram className="w-2.5 h-2.5 text-pink-600" />
+                      ) : (
+                        <MessageCircle className="w-2.5 h-2.5 text-emerald-600" />
                       )}
                     </span>
                   </div>
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-0.5">
-                      <h4 className="font-extrabold text-xs text-slate-900 truncate">
-                        {conv.contact.name}
-                      </h4>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <h4 className="font-extrabold text-xs text-slate-900 truncate">
+                          {conv.contact.name}
+                        </h4>
+                        {isFbAd && (
+                          <span className="px-1 py-0.2 bg-blue-50 text-blue-700 border border-blue-200 text-[8px] font-black rounded shrink-0">
+                            Facebook
+                          </span>
+                        )}
+                        {isIgAd && (
+                          <span className="px-1 py-0.2 bg-pink-50 text-pink-700 border border-pink-200 text-[8px] font-black rounded shrink-0">
+                            Instagram
+                          </span>
+                        )}
+                      </div>
                       <span className="text-[10px] text-slate-400 font-semibold shrink-0">
                         {conv.lastMessageTime}
                       </span>
@@ -682,14 +771,26 @@ export const InboxView: React.FC<InboxViewProps> = ({
                     alt={contact.name}
                     className="w-11 h-11 rounded-2xl object-cover border border-slate-200 shadow-xs"
                   />
-                  <span className="w-3 h-3 bg-emerald-500 rounded-full absolute -top-0.5 -right-0.5 border-2 border-white"></span>
+                  <span className="w-3.5 h-3.5 bg-white rounded-full absolute -top-0.5 -right-0.5 border border-slate-200 flex items-center justify-center shadow-2xs">
+                    {isActiveFbAd || contact.channel === "messenger" ? (
+                      <MessageSquare className="w-2 h-2 text-blue-600" />
+                    ) : isActiveIgAd || contact.channel === "instagram" ? (
+                      <Instagram className="w-2 h-2 text-pink-600" />
+                    ) : (
+                      <span className="w-2 h-2 bg-emerald-500 rounded-full" />
+                    )}
+                  </span>
                 </div>
                 <div className="min-w-0 overflow-hidden">
                   <div className="flex items-center gap-2 min-w-0">
                     <h3 className="font-extrabold text-sm text-slate-900 truncate min-w-0">
                       {contact.name}
                     </h3>
-                    {getChannelBadge(contact.channel)}
+                    {getChannelBadge(
+                      contact.channel,
+                      activeConv.lastMessage,
+                      contact.tags,
+                    )}
                   </div>
                   <p className="text-xs text-slate-500 font-medium flex items-center gap-1 min-w-0 overflow-hidden whitespace-nowrap">
                     <span className="flex items-center gap-1 truncate min-w-0">
@@ -1186,7 +1287,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
                       handleSend();
                     }
                   }}
-                  placeholder={`Escribe un mensaje de WhatsApp para ${contact.name}...`}
+                  placeholder={`Escribe un mensaje (${channelDisplayName}) para ${contact.name}...`}
                   rows={2}
                   className="flex-1 bg-transparent text-xs text-slate-800 focus:outline-none resize-none px-1 font-medium"
                 />
@@ -1335,7 +1436,23 @@ export const InboxView: React.FC<InboxViewProps> = ({
               </button>
 
               <a
-                href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Reunión Demo / Asesoría: ${contact.name} - XIO`)}&dates=${calendarDate.replace(/-/g, "")}T${calendarTime.replace(/:/g, "")}00/${calendarDate.replace(/-/g, "")}T${calendarTime.replace(/:/g, "")}00&details=${encodeURIComponent(`Reunión agendada vía XIO.\nCliente: ${contact.name}\nEmpresa: ${contact.company || "N/A"}\nTel/WhatsApp: ${contact.phone || contact.handle}\nEmail: ${contact.email || "N/A"}\nNotas: ${contact.notes || ""}`)}&location=${encodeURIComponent("Google Meet / WhatsApp Video")}${contact.email ? `&add=${encodeURIComponent(contact.email)}` : ""}`}
+                href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
+                  `Reunión Demo / Asesoría: ${contact.name} - XIO`,
+                )}&dates=${calendarDate.replace(/-/g, "")}T${calendarTime.replace(
+                  /:/g,
+                  "",
+                )}00/${calendarDate.replace(/-/g, "")}T${calendarTime.replace(
+                  /:/g,
+                  "",
+                )}00&details=${encodeURIComponent(
+                  `Reunión agendada vía XIO.\nCliente: ${contact.name}\nEmpresa: ${
+                    contact.company || "N/A"
+                  }\nTel/WhatsApp: ${contact.phone || contact.handle}\nEmail: ${
+                    contact.email || "N/A"
+                  }\nNotas: ${contact.notes || ""}`,
+                )}&location=${encodeURIComponent(
+                  "Google Meet / WhatsApp Video",
+                )}${contact.email ? `&add=${encodeURIComponent(contact.email)}` : ""}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full py-2 bg-white hover:bg-slate-100 border border-slate-200 hover:border-slate-300 text-slate-700 font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-1 text-center shadow-2xs"
