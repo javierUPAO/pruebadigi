@@ -1777,27 +1777,27 @@ export default function HomePage() {
         onClose={() => setIsGithubModalOpen(false)}
       />
 
-{/* WhatsApp Connect Modal */}
-{showWhatsappModal && (
-  <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-950/70 backdrop-blur-sm">
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setShowWhatsappModal(false)}
-        aria-label="Cerrar"
-        className="absolute right-4 top-4 z-10 flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-red-500 text-white shadow-xl ring-2 ring-white/20 transition-colors hover:bg-red-600"
-      >
-        <X className="h-6 w-6" strokeWidth={3} />
-      </button>
-      <WhatsAppConnectView
-        connectionStatus={whatsappStatus?.connectionStatus}
-        qrData={whatsappStatus?.qrData}
-        onRequestQr={handleRequestQr}
-        onDisconnect={handleDisconnectWhatsapp}
-      />
-    </div>
-  </div>
-)}
+      {/* WhatsApp Connect Modal */}
+      {showWhatsappModal && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-950/70 backdrop-blur-sm">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowWhatsappModal(false)}
+              aria-label="Cerrar"
+              className="absolute right-4 top-4 z-10 flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-red-500 text-white shadow-xl ring-2 ring-white/20 transition-colors hover:bg-red-600"
+            >
+              <X className="h-6 w-6" strokeWidth={3} />
+            </button>
+            <WhatsAppConnectView
+              connectionStatus={whatsappStatus?.connectionStatus}
+              qrData={whatsappStatus?.qrData}
+              onRequestQr={handleRequestQr}
+              onDisconnect={handleDisconnectWhatsapp}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

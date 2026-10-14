@@ -52,6 +52,7 @@ import {
   Headset,
   Rocket,
   Briefcase,
+  Trash2,
 } from "lucide-react";
 import { QuickRepliesModal } from "./QuickRepliesModal";
 import { VoiceNotePlayer } from "./VoiceNotePlayer";
@@ -79,6 +80,7 @@ interface InboxViewProps {
   pathname: string;
   searchParams: ReadonlyURLSearchParams;
   router: AppRouterInstance;
+  onDeleteMessage?: (conversationId: string, messageId: string) => void;
 }
 
 interface CollapsibleSectionProps {
@@ -176,6 +178,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
   onSelectConversation,
   messagesMap,
   onSendMessage,
+  onDeleteMessage,
   onUpdateContactStage,
   onUpdateContactTags,
   onUpdateContactNotes,
@@ -265,6 +268,15 @@ export const InboxView: React.FC<InboxViewProps> = ({
     });
   };
 
+  const [messageToDelete, setMessageToDelete] = useState<Message | null>(null);
+  const [isDeletingMessage, setIsDeletingMessage] = useState<boolean>(false);
+  const [deletedMessageIds, setDeletedMessageIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [lastMessageOverrides, setLastMessageOverrides] = useState<
+    Record<string, { text: string; time: string }>
+  >({});
+
   const handleQuickRepliesMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -319,6 +331,56 @@ export const InboxView: React.FC<InboxViewProps> = ({
     setAttachedImageUrl("");
     setShowAttachInput(false);
     setAiSuggestions(null);
+  };
+
+  const handleConfirmDeleteMessage = async () => {
+    if (!messageToDelete || !activeConv) return;
+    setIsDeletingMessage(true);
+
+    // Toma "id" (ej. m_1791400448432) o "_id" (ej. 6ac69a022f147a829fc5165e)
+    const targetId = messageToDelete.id || (messageToDelete as any)._id;
+
+    try {
+      const response = await apiFetch(
+        `/api/messages?id=${encodeURIComponent(targetId)}`,
+        { method: "DELETE" },
+      );
+      const resData = await response.json();
+
+      if (resData.success) {
+        // Oculta el mensaje inmediatamente en la UI
+        setDeletedMessageIds((prev) => {
+          const next = new Set(prev);
+          if (messageToDelete.id) next.add(messageToDelete.id);
+          if ((messageToDelete as any)._id)
+            next.add((messageToDelete as any)._id);
+          return next;
+        });
+
+        // Notifica al componente padre si pasó la prop onDeleteMessage
+        if (onDeleteMessage) {
+          onDeleteMessage(activeConv.id, targetId);
+        }
+
+        // 2. Actualiza el preview de la conversación en la barra lateral izquierda
+        if (resData.lastMessage !== undefined && resData.lastMessage !== null) {
+          setLastMessageOverrides((prev) => ({
+            ...prev,
+            [activeConv.id]: {
+              text: resData.lastMessage,
+              time: resData.lastMessageTime ?? activeConv.lastMessageTime,
+            },
+          }));
+        }
+        setMessageToDelete(null);
+      } else {
+        console.error("No se pudo eliminar el mensaje:", resData.error);
+      }
+    } catch (err) {
+      console.error("Error al eliminar el mensaje:", err);
+    } finally {
+      setIsDeletingMessage(false);
+    }
   };
 
   const handleExecuteQuickReply = (qr: QuickReply) => {
@@ -716,12 +778,13 @@ export const InboxView: React.FC<InboxViewProps> = ({
                         )}
                       </div>
                       <span className="text-[10px] text-slate-400 font-semibold shrink-0">
-                        {conv.lastMessageTime}
+                        {lastMessageOverrides[conv.id]?.time ??
+                          conv.lastMessageTime}
                       </span>
                     </div>
 
                     <p className="text-xs text-slate-600 truncate mb-1.5 font-medium">
-                      {conv.lastMessage}
+                      {lastMessageOverrides[conv.id]?.text ?? conv.lastMessage}
                     </p>
 
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -973,141 +1036,165 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
             {/* Message Thread */}
             <div className="flex-1 p-5 overflow-y-auto space-y-3.5 bg-[#efeae2]/60 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px]">
-              {activeMessages.map((msg) => {
-                const isAgent = msg.sender === "agent" || msg.sender === "bot";
-                return (
-                  <div
-                    key={msg.id}
-                    className={`flex flex-col ${isAgent ? "items-end" : "items-start"}`}
-                  >
-                    <div className="flex items-center gap-1.5 mb-1 text-[10px] text-slate-500 font-semibold px-1">
-                      <span className="flex items-center gap-1">
-                        {msg.senderName ? (
-                          msg.senderName
-                        ) : isAgent ? (
-                          <>
-                            <Headset className="w-2.5 h-2.5" /> Asesor XIO
-                          </>
-                        ) : (
-                          contact.name
-                        )}
-                      </span>
-                      <span>•</span>
-                      <span>{msg.timestamp}</span>
-                      {msg.aiGenerated && (
-                        <span className="px-1.5 py-0.2 bg-emerald-200 text-emerald-900 font-extrabold rounded-md shadow-2xs flex items-center gap-1">
-                          <Sparkles className="w-2.5 h-2.5" /> Bot IA
-                        </span>
-                      )}
-                    </div>
+              {activeMessages
+                .filter(
+                  (msg) =>
+                    !deletedMessageIds.has(msg.id) &&
+                    !deletedMessageIds.has((msg as any)._id),
+                )
+                .map((msg) => {
+                  const isAgent =
+                    msg.sender === "agent" || msg.sender === "bot";
+                  const isClient = msg.sender === "contact";
 
+                  return (
                     <div
-                      className={`max-w-md rounded-2xl p-3.5 text-xs leading-relaxed shadow-sm transition-all ${
-                        isAgent
-                          ? "bg-[#dcf8c6] text-slate-900 rounded-tr-xs border border-emerald-300/80 shadow-emerald-900/5"
-                          : "bg-white text-slate-800 border border-slate-200/90 rounded-tl-xs shadow-slate-900/5"
-                      }`}
+                      key={msg.id || (msg as any)._id}
+                      className={`group flex flex-col ${isAgent ? "items-end" : "items-start"}`}
                     >
-                      {msg.hasMedia && msg.media && (
-                        <>
-                          {msg.mediaType === "image" && (
-                            <div className="mb-2 rounded-xl overflow-hidden border border-black/10 bg-black/5 shadow-2xs">
-                              <img
-                                src={`data:${msg.media.mimetype};base64,${msg.media.data}`}
-                                alt={msg.media.filename || "Imagen"}
-                                className="w-full max-h-60 object-cover cursor-pointer hover:opacity-95 transition-opacity"
-                                onClick={() =>
-                                  window.open(
-                                    `data:${msg.media.mimetype};base64,${msg.media.data}`,
-                                    "_blank",
-                                  )
-                                }
-                              />
-                            </div>
+                      <div className="flex items-center gap-1.5 mb-1 text-[10px] text-slate-500 font-semibold px-1">
+                        <span className="flex items-center gap-1">
+                          {msg.senderName ? (
+                            msg.senderName
+                          ) : isAgent ? (
+                            <>
+                              <Headset className="w-2.5 h-2.5" /> Asesor XIO
+                            </>
+                          ) : (
+                            contact.name
                           )}
-                          {msg.mediaType === "video" && (
-                            <div className="mb-2 rounded-xl overflow-hidden border border-black/10 bg-black/5 shadow-2xs">
-                              <video
-                                src={`data:${msg.media.mimetype};base64,${msg.media.data}`}
-                                controls
-                                className="w-full max-h-60 object-cover"
-                              />
-                            </div>
-                          )}
-                          {msg.mediaType === "audio" && (
-                            <div className="mb-2">
-                              <VoiceNotePlayer
-                                src={`data:${msg.media.mimetype};base64,${msg.media.data}`}
-                              />
-                            </div>
-                          )}
-                          {msg.mediaType === "document" && (
-                            <div className="mb-2 p-3 bg-slate-100 rounded-xl border border-slate-200 flex items-center gap-3">
-                              <FileText className="w-8 h-8 text-slate-500 shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-bold text-slate-800 truncate">
-                                  {msg.media.filename || "Documento"}
-                                </p>
-                                <p className="text-[10px] text-slate-500">
-                                  {msg.media.mimetype}
-                                </p>
-                              </div>
-                              <a
-                                href={`data:${msg.media.mimetype};base64,${msg.media.data}`}
-                                download={msg.media.filename || "documento"}
-                                className="px-2 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg text-[10px] font-bold transition-colors"
-                              >
-                                Descargar
-                              </a>
-                            </div>
-                          )}
-                          {msg.mediaType === "sticker" && (
-                            <div className="mb-2">
-                              <img
-                                src={`data:${msg.media.mimetype};base64,${msg.media.data}`}
-                                alt="Sticker"
-                                className="w-32 h-32 object-contain"
-                              />
-                            </div>
-                          )}
-                        </>
-                      )}
-
-                      {msg.mediaUrl &&
-                        !msg.hasMedia &&
-                        (msg.mediaUrl.startsWith("data:audio/") ? (
-                          <div className="mb-2">
-                            <VoiceNotePlayer src={msg.mediaUrl} />
-                          </div>
-                        ) : (
-                          <div className="mb-2 rounded-xl overflow-hidden border border-black/10 bg-black/5 shadow-2xs">
-                            <img
-                              src={msg.mediaUrl}
-                              alt="Adjunto"
-                              className="w-full max-h-60 object-cover cursor-pointer hover:opacity-95 transition-opacity"
-                              onClick={() =>
-                                window.open(msg.mediaUrl, "_blank")
-                              }
-                            />
-                          </div>
-                        ))}
-
-                      {msg.text && (
-                        <p className="whitespace-pre-line leading-relaxed font-medium">
-                          {msg.text}
-                        </p>
-                      )}
-
-                      <div className="flex items-center justify-end gap-1.5 text-[10px] text-slate-400 mt-1.5 font-medium">
+                        </span>
+                        <span>•</span>
                         <span>{msg.timestamp}</span>
-                        {isAgent && (
-                          <CheckCheck className="w-3 h-3 text-emerald-700" />
+                        {msg.aiGenerated && (
+                          <span className="px-1.5 py-0.2 bg-emerald-200 text-emerald-900 font-extrabold rounded-md shadow-2xs flex items-center gap-1">
+                            <Sparkles className="w-2.5 h-2.5" /> Bot IA
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 max-w-full">
+                        <div
+                          className={`max-w-md rounded-2xl p-3.5 text-xs leading-relaxed shadow-sm transition-all ${
+                            isAgent
+                              ? "bg-[#dcf8c6] text-slate-900 rounded-tr-xs border border-emerald-300/80 shadow-emerald-900/5"
+                              : "bg-white text-slate-800 border border-slate-200/90 rounded-tl-xs shadow-slate-900/5"
+                          }`}
+                        >
+                          {msg.hasMedia && msg.media && (
+                            <>
+                              {msg.mediaType === "image" && (
+                                <div className="mb-2 rounded-xl overflow-hidden border border-black/10 bg-black/5 shadow-2xs">
+                                  <img
+                                    src={`data:${msg.media.mimetype};base64,${msg.media.data}`}
+                                    alt={msg.media.filename || "Imagen"}
+                                    className="w-full max-h-60 object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                                    onClick={() =>
+                                      window.open(
+                                        `data:${msg.media.mimetype};base64,${msg.media.data}`,
+                                        "_blank",
+                                      )
+                                    }
+                                  />
+                                </div>
+                              )}
+                              {msg.mediaType === "video" && (
+                                <div className="mb-2 rounded-xl overflow-hidden border border-black/10 bg-black/5 shadow-2xs">
+                                  <video
+                                    src={`data:${msg.media.mimetype};base64,${msg.media.data}`}
+                                    controls
+                                    className="w-full max-h-60 object-cover"
+                                  />
+                                </div>
+                              )}
+                              {msg.mediaType === "audio" && (
+                                <div className="mb-2">
+                                  <VoiceNotePlayer
+                                    src={`data:${msg.media.mimetype};base64,${msg.media.data}`}
+                                  />
+                                </div>
+                              )}
+                              {msg.mediaType === "document" && (
+                                <div className="mb-2 p-3 bg-slate-100 rounded-xl border border-slate-200 flex items-center gap-3">
+                                  <FileText className="w-8 h-8 text-slate-500 shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-bold text-slate-800 truncate">
+                                      {msg.media.filename || "Documento"}
+                                    </p>
+                                    <p className="text-[10px] text-slate-500">
+                                      {msg.media.mimetype}
+                                    </p>
+                                  </div>
+                                  <a
+                                    href={`data:${msg.media.mimetype};base64,${msg.media.data}`}
+                                    download={msg.media.filename || "documento"}
+                                    className="px-2 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg text-[10px] font-bold transition-colors"
+                                  >
+                                    Descargar
+                                  </a>
+                                </div>
+                              )}
+                              {msg.mediaType === "sticker" && (
+                                <div className="mb-2">
+                                  <img
+                                    src={`data:${msg.media.mimetype};base64,${msg.media.data}`}
+                                    alt="Sticker"
+                                    className="w-32 h-32 object-contain"
+                                  />
+                                </div>
+                              )}
+                            </>
+                          )}
+
+                          {msg.mediaUrl &&
+                            !msg.hasMedia &&
+                            (msg.mediaUrl.startsWith("data:audio/") ? (
+                              <div className="mb-2">
+                                <VoiceNotePlayer src={msg.mediaUrl} />
+                              </div>
+                            ) : (
+                              <div className="mb-2 rounded-xl overflow-hidden border border-black/10 bg-black/5 shadow-2xs">
+                                <img
+                                  src={msg.mediaUrl}
+                                  alt="Adjunto"
+                                  className="w-full max-h-60 object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                                  onClick={() =>
+                                    window.open(msg.mediaUrl, "_blank")
+                                  }
+                                />
+                              </div>
+                            ))}
+
+                          {msg.text && (
+                            <p className="whitespace-pre-line leading-relaxed font-medium">
+                              {msg.text}
+                            </p>
+                          )}
+
+                          <div className="flex items-center justify-end gap-1.5 text-[10px] text-slate-400 mt-1.5 font-medium">
+                            <span>{msg.timestamp}</span>
+                            {isAgent && (
+                              <CheckCheck className="w-3 h-3 text-emerald-700" />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Botón de eliminar: SOLO se renderiza cuando sender === "contact" */}
+                        {isClient && (
+                          <button
+                            type="button"
+                            onClick={() => setMessageToDelete(msg)}
+                            title="Eliminar mensaje del cliente"
+                            aria-label="Eliminar mensaje del cliente"
+                            className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100 p-1.5 bg-white/90 hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200/80 hover:border-rose-200 rounded-xl shadow-2xs transition-all cursor-pointer shrink-0"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         )}
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
               <div ref={messagesEndRef} />
             </div>
 
@@ -1579,6 +1666,56 @@ export const InboxView: React.FC<InboxViewProps> = ({
             }
           }}
         />
+      )}
+
+      {/* Modal de Confirmación para Eliminar Mensaje del Cliente */}
+      {messageToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-sm w-full p-5 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-extrabold text-sm text-slate-900">
+                  ¿Eliminar mensaje del cliente?
+                </h4>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Esta acción borrará permanentemente el mensaje de la base de
+                  datos de MongoDB y no se podrá deshacer.
+                </p>
+              </div>
+            </div>
+
+            {messageToDelete.text && (
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 italic line-clamp-3">
+                "{messageToDelete.text}"
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setMessageToDelete(null)}
+                disabled={isDeletingMessage}
+                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteMessage}
+                disabled={isDeletingMessage}
+                className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-extrabold shadow-sm shadow-rose-600/20 transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>
+                  {isDeletingMessage ? "Eliminando..." : "Sí, eliminar"}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
