@@ -1776,7 +1776,6 @@ export default function HomePage() {
         isOpen={isGithubModalOpen}
         onClose={() => setIsGithubModalOpen(false)}
       />
-
       {/* WhatsApp Connect Modal */}
       {showWhatsappModal && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-950/70 backdrop-blur-sm">
