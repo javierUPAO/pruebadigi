@@ -245,10 +245,11 @@ export const InboxView: React.FC<InboxViewProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (activeConversationId !== "") {
+      setMobileStage("chat");
+    } else {
       setMobileStage("list");
     }
-    setMobileStage("chat");
-  }, []);
+  }, [activeConversationId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
