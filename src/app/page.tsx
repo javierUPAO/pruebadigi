@@ -160,6 +160,7 @@ export default function HomePage() {
   }, []);
 
   const searchParams = useSearchParams();
+
   // Core CRM Datasets State
   const [contacts, setContacts] = useState<Contact[]>(INITIAL_CONTACTS);
   const [conversations, setConversations] = useState<Conversation[]>(
@@ -167,7 +168,10 @@ export default function HomePage() {
   );
   const [messagesMap, setMessagesMap] =
     useState<Record<string, Message[]>>(INITIAL_MESSAGES);
-  const [activeConversationId, setActiveConversationId] = useState<string>("");
+
+  const [activeConversationId, setActiveConversationId] = useState<string>(
+    () => searchParams?.get("id") || "",
+  );
 
   // Persistent Quick Replies
   const [quickReplies, setQuickReplies] = useState<QuickReply[]>(
@@ -340,6 +344,15 @@ export default function HomePage() {
               .filter((conv: any) => !!conv.contact);
             if (hydrated.length > 0) {
               setConversations(hydrated);
+              const currentUrlId = new URLSearchParams(
+                window.location.search,
+              ).get("id");
+              if (
+                currentUrlId &&
+                hydrated.some((c: any) => c.id === currentUrlId)
+              ) {
+                setActiveConversationId(currentUrlId);
+              }
             }
           }
         }
@@ -429,23 +442,20 @@ export default function HomePage() {
         );
         if (!res.ok) return;
         const data = await res.json();
-        if (
-          cancelled ||
-          !data.success ||
-          !Array.isArray(data.data) ||
-          data.data.length === 0
-        )
-          return;
+        if (cancelled || !data.success || !Array.isArray(data.data)) return;
 
-        setMessagesMap((prev) => {
-          const fetchedIds = new Set(data.data.map((m: Message) => m.id));
-          const pendingLocal = (prev[convId] || []).filter(
-            (m) => !fetchedIds.has(m.id),
-          );
-          return { ...prev, [convId]: [...data.data, ...pendingLocal] };
-        });
+        // Normalizamos los mensajes asegurando id y reemplazamos directamente
+        const freshMessages: Message[] = data.data.map((m: any) => ({
+          ...m,
+          id: m.id || m._id,
+        }));
+
+        setMessagesMap((prev) => ({
+          ...prev,
+          [convId]: freshMessages,
+        }));
       } catch {
-        // La conversación mantiene los mensajes que ya tuviera en memoria.
+        // La conversación mantiene los mensajes previos si falla la red
       }
     })();
 
@@ -453,6 +463,13 @@ export default function HomePage() {
       cancelled = true;
     };
   }, [activeConversationId, mounted]);
+
+  useEffect(() => {
+    const idFromUrl = searchParams?.get("id");
+    if (idFromUrl && idFromUrl !== activeConversationId) {
+      setActiveConversationId(idFromUrl);
+    }
+  }, [searchParams]);
 
   const isWhatsappServiceActive = whatsappSocketRef.current?.connected ?? false;
   const visibleConversations = isWhatsappServiceActive
@@ -862,11 +879,13 @@ export default function HomePage() {
         setWhatsappStatus(st.data);
       }
     });
+
+    /* No se usa el historial de mensajes porque el socket ya emite los entrantes en tiempo real.
     getReceivedMessages(50).then((res) => {
       if (res.ok && Array.isArray(res.data.messages)) {
         res.data.messages.forEach((m) => incomingHandlerRef.current(m));
       }
-    });
+    }); */
 
     return () => {
       socket.disconnect();
@@ -874,8 +893,10 @@ export default function HomePage() {
     };
   }, [mounted, authChecked, currentUser]);
 
-  // Simulate Incoming Message from Social Channels & Trigger AI Auto-Responder
+  //Simulate Incoming Message from Social Channels & Trigger AI Auto-Responder
+  // comentando para no usar simulados
   const handleSimulateIncomingMessage = async () => {
+    /*
     try {
       // Definicion de valores para el mensaje del cliente simulado
       const randomChannel: SocialChannel = ["whatsapp", "instagram", "twitter"][
@@ -956,6 +977,7 @@ export default function HomePage() {
     } catch (err) {
       console.error("Error in simulated bot response:", err);
     }
+    */
   };
 
   // Update Contact Stage
@@ -1776,7 +1798,6 @@ export default function HomePage() {
         isOpen={isGithubModalOpen}
         onClose={() => setIsGithubModalOpen(false)}
       />
-
       {/* WhatsApp Connect Modal */}
       {showWhatsappModal && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-950/70 backdrop-blur-sm">
