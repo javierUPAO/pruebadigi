@@ -54,6 +54,7 @@ import {
   Briefcase,
   Trash2,
 } from "lucide-react";
+import { FacebookIcon } from "../icons/FacebookIcon";
 import { QuickRepliesModal } from "./QuickRepliesModal";
 import { VoiceNotePlayer } from "./VoiceNotePlayer";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
@@ -197,6 +198,9 @@ export const InboxView: React.FC<InboxViewProps> = ({
   const [tagInput, setTagInput] = useState<string>("");
   const [isQuickRepliesModalOpen, setIsQuickRepliesModalOpen] =
     useState<boolean>(false);
+
+  const [isQuickRepliesExpanded, setIsQuickRepliesExpanded] =
+    useState<boolean>(false);
   const [attachedImageUrl, setAttachedImageUrl] = useState<string>("");
   const [showAttachInput, setShowAttachInput] = useState<boolean>(false);
 
@@ -319,6 +323,26 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
     return matchesChannel && matchesSearch;
   });
+
+  // Contadores rápidos por canal para los filtros
+  const channelCounts = conversations.reduce(
+    (acc, c) => {
+      const ref = getReferencedChannels(c.lastMessage);
+      const isFb =
+        c.contact.tags?.includes("Facebook Lead") ||
+        ref.includes("messenger") ||
+        c.channel === "messenger";
+      const isIg =
+        c.contact.tags?.includes("Instagram Lead") ||
+        ref.includes("instagram") ||
+        c.channel === "instagram";
+      if (c.channel === "whatsapp") acc.whatsapp++;
+      if (isIg) acc.instagram++;
+      if (isFb) acc.messenger++;
+      return acc;
+    },
+    { whatsapp: 0, instagram: 0, messenger: 0 },
+  );
 
   const handleSend = () => {
     if ((!inputText.trim() && !attachedImageUrl) || !activeConv) return;
@@ -566,7 +590,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
             </span>
             {isFromFbAd && (
               <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-300 font-black rounded-md text-[9px] flex items-center gap-0.5">
-                <MessageSquare className="w-2 h-2" /> Vía Facebook
+                <FacebookIcon className="w-2 h-2" /> Vía Facebook
               </span>
             )}
             {isFromIgAd && (
@@ -579,7 +603,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
       case "messenger":
         return (
           <span className="px-2 py-0.5 bg-blue-50 text-blue-800 border border-blue-300 font-extrabold rounded-full text-[10px] flex items-center gap-1 shadow-2xs">
-            <MessageSquare className="w-2.5 h-2.5" /> Facebook
+            <FacebookIcon className="w-2.5 h-2.5" /> Facebook
           </span>
         );
       case "instagram":
@@ -649,61 +673,101 @@ export const InboxView: React.FC<InboxViewProps> = ({
       <div
         className={`${mobileStage === "list" ? "flex" : "hidden"} lg:flex w-full lg:w-80 border-r border-slate-200/90 bg-white flex-col shrink-0 shadow-sm z-10`}
       >
-        <div className="p-3 border-b border-slate-200/80 bg-gradient-to-r from-slate-50 to-slate-100/50">
-          <div
-            className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar"
-            onWheel={(e) => {
-              if (e.deltaY === 0) return;
-              e.preventDefault();
-              e.currentTarget.scrollLeft += e.deltaY;
-            }}
-          >
+        <div className="p-2.5 border-b border-slate-200/80 bg-gradient-to-b from-slate-50 to-slate-100/60">
+          <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+            {/* TODOS */}
             <button
               onClick={() => setChannelFilter("all")}
-              className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap cursor-pointer transition-all ${
+              className={`px-2.5 py-1.5 rounded-xl font-bold flex items-center justify-between cursor-pointer transition-all border ${
                 channelFilter === "all"
-                  ? "bg-slate-900 text-white shadow-sm scale-102"
-                  : "text-slate-600 hover:bg-slate-200/70"
+                  ? "bg-slate-900 text-white border-slate-900 shadow-xs"
+                  : "bg-white text-slate-600 border-slate-200/80 hover:bg-slate-100"
               }`}
             >
-              <span className="inline-flex items-center gap-1">
-                <Globe className="w-3 h-3" /> Todos ({conversations.length})
+              <span className="inline-flex items-center gap-1.5 truncate">
+                <Globe className="w-3.5 h-3.5 shrink-0" />
+                <span>Todos</span>
+              </span>
+              <span
+                className={`px-1.5 py-0.2 rounded-md text-[10px] font-extrabold ${
+                  channelFilter === "all"
+                    ? "bg-white/20 text-white"
+                    : "bg-slate-100 text-slate-600"
+                }`}
+              >
+                {conversations.length}
               </span>
             </button>
+
+            {/* WHATSAPP */}
             <button
               onClick={() => setChannelFilter("whatsapp")}
-              className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap cursor-pointer transition-all ${
+              className={`px-2.5 py-1.5 rounded-xl font-bold flex items-center justify-between cursor-pointer transition-all border ${
                 channelFilter === "whatsapp"
-                  ? "bg-emerald-600 text-white shadow-sm shadow-emerald-700/20 scale-102"
-                  : "text-emerald-700 bg-emerald-50/60 hover:bg-emerald-100 border border-emerald-200/60"
+                  ? "bg-emerald-600 text-white border-emerald-600 shadow-xs shadow-emerald-700/15"
+                  : "bg-white text-emerald-700 border-emerald-200/80 hover:bg-emerald-50/70"
               }`}
             >
-              <span className="inline-flex items-center gap-1">
-                <MessageCircle className="w-3 h-3" /> WhatsApp
+              <span className="inline-flex items-center gap-1.5 truncate">
+                <MessageCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>WhatsApp</span>
+              </span>
+              <span
+                className={`px-1.5 py-0.2 rounded-md text-[10px] font-extrabold ${
+                  channelFilter === "whatsapp"
+                    ? "bg-white/20 text-white"
+                    : "bg-emerald-50 text-emerald-700"
+                }`}
+              >
+                {channelCounts.whatsapp}
               </span>
             </button>
+
+            {/* INSTAGRAM */}
             <button
               onClick={() => setChannelFilter("instagram")}
-              className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap cursor-pointer transition-all ${
+              className={`px-2.5 py-1.5 rounded-xl font-bold flex items-center justify-between cursor-pointer transition-all border ${
                 channelFilter === "instagram"
-                  ? "bg-pink-600 text-white shadow-sm shadow-pink-700/20 scale-102"
-                  : "text-pink-700 bg-pink-50/60 hover:bg-pink-100 border border-pink-200/60"
+                  ? "bg-pink-600 text-white border-pink-600 shadow-xs shadow-pink-700/15"
+                  : "bg-white text-pink-700 border-pink-200/80 hover:bg-pink-50/70"
               }`}
             >
-              <span className="inline-flex items-center gap-1">
-                <Instagram className="w-3 h-3" /> Instagram
+              <span className="inline-flex items-center gap-1.5 truncate">
+                <Instagram className="w-3.5 h-3.5 shrink-0" />
+                <span>Instagram</span>
+              </span>
+              <span
+                className={`px-1.5 py-0.2 rounded-md text-[10px] font-extrabold ${
+                  channelFilter === "instagram"
+                    ? "bg-white/20 text-white"
+                    : "bg-pink-50 text-pink-700"
+                }`}
+              >
+                {channelCounts.instagram}
               </span>
             </button>
+
+            {/* FACEBOOK */}
             <button
               onClick={() => setChannelFilter("messenger")}
-              className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap cursor-pointer transition-all ${
+              className={`px-2.5 py-1.5 rounded-xl font-bold flex items-center justify-between cursor-pointer transition-all border ${
                 channelFilter === "messenger"
-                  ? "bg-blue-600 text-white shadow-sm shadow-blue-700/20 scale-102"
-                  : "text-blue-700 bg-blue-50/60 hover:bg-blue-100 border border-blue-200/60"
+                  ? "bg-blue-600 text-white border-blue-600 shadow-xs shadow-blue-700/15"
+                  : "bg-white text-blue-700 border-blue-200/80 hover:bg-blue-50/70"
               }`}
             >
-              <span className="inline-flex items-center gap-1">
-                <MessageSquare className="w-3 h-3" /> Facebook
+              <span className="inline-flex items-center gap-1.5 truncate">
+                <FacebookIcon className="w-3.5 h-3.5 shrink-0" />
+                <span>Facebook</span>
+              </span>
+              <span
+                className={`px-1.5 py-0.2 rounded-md text-[10px] font-extrabold ${
+                  channelFilter === "messenger"
+                    ? "bg-white/20 text-white"
+                    : "bg-blue-50 text-blue-700"
+                }`}
+              >
+                {channelCounts.messenger}
               </span>
             </button>
           </div>
@@ -752,7 +816,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
                     {/* Badge del canal en la esquina de la foto */}
                     <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow-2xs border border-slate-100">
                       {isFbAd || conv.channel === "messenger" ? (
-                        <MessageSquare className="w-2.5 h-2.5 text-blue-600" />
+                        <FacebookIcon className="w-2.5 h-2.5 text-blue-600" />
                       ) : isIgAd || conv.channel === "instagram" ? (
                         <Instagram className="w-2.5 h-2.5 text-pink-600" />
                       ) : (
@@ -1201,105 +1265,108 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
             {/* Quick Templates Bar & Composer */}
             <div className="p-3 border-t border-slate-200 bg-white space-y-2 shadow-xs">
-              <div
-                className="relative"
-                onMouseMove={handleQuickRepliesMouseMove}
-                onMouseLeave={() => setHoverEdge(null)}
-              >
-                {hoverEdge === "left" && (
-                  <button
-                    onClick={() => scrollQuickReplies("left")}
-                    className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-6 h-6 bg-white border border-slate-200 rounded-full shadow-md flex items-center justify-center cursor-pointer hover:bg-slate-100 animate-fadeIn"
-                    aria-label="Desplazar a la izquierda"
-                  >
-                    <ChevronLeft className="w-3.5 h-3.5 text-slate-600" />
-                  </button>
-                )}
+              {/* Barra Superior de Respuestas Rápidas */}
+              <div className="flex items-start gap-1.5">
+                {/* 1. Botón Único Unificado: Abre el Modal de Gestión / Creación */}
+                <button
+                  type="button"
+                  onClick={() => setIsQuickRepliesModalOpen(true)}
+                  title="Gestionar y crear plantillas rápidas"
+                  className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-900 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-extrabold transition-colors cursor-pointer shadow-2xs"
+                >
+                  <Zap className="w-3 h-3 text-emerald-400 shrink-0" />
+                  <span>Plantillas</span>
+                  <span className="px-1.5 py-0.2 bg-white/15 text-white rounded-full text-[9px] font-mono">
+                    {quickReplies.length}
+                  </span>
+                  <Plus className="w-3 h-3 text-slate-300 shrink-0" />
+                </button>
 
+                {/* 2. Contenedor de Píldoras (1 línea compacta o Expandible en wrap) */}
                 <div
                   ref={quickRepliesScrollRef}
-                  className="flex items-center gap-1.5 overflow-x-auto text-xs pb-1 no-scrollbar"
+                  onWheel={(e) => {
+                    if (!isQuickRepliesExpanded && e.deltaY !== 0) {
+                      e.preventDefault();
+                      e.currentTarget.scrollLeft += e.deltaY;
+                    }
+                  }}
+                  className={`flex-1 flex items-center gap-1.5 text-xs transition-all ${
+                    isQuickRepliesExpanded
+                      ? "flex-wrap max-h-24 overflow-y-auto pr-1 scrollbar-thin"
+                      : "overflow-x-auto no-scrollbar whitespace-nowrap mask-fade-right"
+                  }`}
                 >
-                  <div className="flex items-center gap-1.5 shrink-0 bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-200">
-                    <span className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-1">
-                      <Zap className="w-3 h-3" />
-                      <span>Respuestas Rápidas</span>
-                      <span className="px-1.5 py-0.2 bg-emerald-600 text-white rounded-full text-[9px] font-mono font-bold">
-                        {quickReplies.length}
-                      </span>
-                    </span>
+                  {quickReplies.length === 0 ? (
                     <button
                       type="button"
                       onClick={() => setIsQuickRepliesModalOpen(true)}
-                      title="Configurar y crear plantillas ilimitadas"
-                      aria-label="Configurar y crear plantillas ilimitadas"
-                      className="p-1 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                      className="text-[11px] text-slate-400 hover:text-emerald-600 italic py-0.5 cursor-pointer"
                     >
-                      <Edit3 className="w-3.5 h-3.5" />
+                      Sin plantillas rápidas. Haz clic aquí para crear la
+                      primera...
                     </button>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsQuickRepliesModalOpen(true)}
-                    className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-xl text-[11px] font-extrabold shrink-0 flex items-center gap-1 cursor-pointer transition-all shadow-2xs hover:scale-105"
-                    title="Crear una nueva plantilla de WhatsApp"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Plantilla</span>
-                  </button>
-
-                  {quickReplies.map((qr) => (
-                    <button
-                      key={qr.id}
-                      onClick={() => handleExecuteQuickReply(qr)}
-                      title={
-                        qr.imageUrl
-                          ? `Enviar: "${qr.text}" + Imagen adjunta`
-                          : `Insertar: "${qr.text}"`
-                      }
-                      className={`px-3 py-1 rounded-xl text-[11px] font-semibold shrink-0 flex items-center gap-1.5 transition-all cursor-pointer hover:scale-102 ${
-                        qr.imageUrl
-                          ? "bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-2xs font-bold"
-                          : "bg-slate-100 hover:bg-emerald-50 hover:border-emerald-300 border border-slate-200 text-slate-700"
-                      }`}
-                    >
-                      <span>{qr.emoji || "⚡"}</span>
-                      <span>{qr.title}</span>
-                      {qr.imageUrl && (
-                        <ImageIcon className="w-3 h-3 text-emerald-600" />
-                      )}
-                    </button>
-                  ))}
-
-                  <button
-                    onClick={handleSendVoiceNote}
-                    disabled={isVoiceNoteLoading || !inputText.trim()}
-                    className="px-3 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 rounded-xl text-[11px] font-extrabold shrink-0 flex items-center gap-1.5 cursor-pointer shadow-2xs disabled:opacity-40"
-                  >
-                    <Mic
-                      className={`w-3.5 h-3.5 ${isVoiceNoteLoading ? "animate-pulse" : ""}`}
-                    />
-                    <span>
-                      {isVoiceNoteLoading ? "Generando..." : "Audio WhatsApp"}
-                    </span>
-                  </button>
+                  ) : (
+                    quickReplies.map((qr) => (
+                      <button
+                        key={qr.id}
+                        type="button"
+                        onClick={() => handleExecuteQuickReply(qr)}
+                        title={
+                          qr.imageUrl
+                            ? `Enviar: "${qr.text}" + Imagen adjunta`
+                            : `Insertar: "${qr.text}"`
+                        }
+                        className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold shrink-0 inline-flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 ${
+                          qr.imageUrl
+                            ? "bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold"
+                            : "bg-slate-100 hover:bg-emerald-50 hover:text-emerald-900 hover:border-emerald-300 border border-slate-200/90 text-slate-700"
+                        }`}
+                      >
+                        <span>{qr.emoji || "⚡"}</span>
+                        <span className="max-w-[140px] truncate">
+                          {qr.title}
+                        </span>
+                        {qr.imageUrl && (
+                          <ImageIcon className="w-3 h-3 text-emerald-600 shrink-0" />
+                        )}
+                      </button>
+                    ))
+                  )}
                 </div>
 
-                {hoverEdge === "right" && (
+                {/* 3. Botón para expandir/contraer si hay varias plantillas */}
+                {quickReplies.length > 3 && (
                   <button
-                    onClick={() => scrollQuickReplies("right")}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-6 h-6 bg-white border border-slate-200 rounded-full shadow-md flex items-center justify-center cursor-pointer hover:bg-slate-100 animate-fadeIn"
-                    aria-label="Desplazar a la derecha"
+                    type="button"
+                    onClick={() => setIsQuickRepliesExpanded((prev) => !prev)}
+                    title={
+                      isQuickRepliesExpanded
+                        ? "Contraer plantillas a una sola fila"
+                        : "Ver todas las plantillas"
+                    }
+                    className={`shrink-0 px-2 py-1 rounded-xl border text-[10px] font-extrabold inline-flex items-center gap-1 cursor-pointer transition-all ${
+                      isQuickRepliesExpanded
+                        ? "bg-emerald-50 border-emerald-300 text-emerald-800"
+                        : "bg-white hover:bg-slate-100 border-slate-200 text-slate-600"
+                    }`}
                   >
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
+                    <span className="hidden sm:inline">
+                      {isQuickRepliesExpanded ? "Menos" : "Todas"}
+                    </span>
+                    <ChevronDown
+                      className={`w-3 h-3 transition-transform duration-200 ${
+                        isQuickRepliesExpanded ? "rotate-180" : ""
+                      }`}
+                    />
                   </button>
                 )}
               </div>
 
+              {/* Input de Imagen Adjunta (cuando está activo) */}
               {showAttachInput && (
                 <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center gap-2 shadow-2xs">
-                  <ImageIcon className="w-4 h-4 shrink-0" />
+                  <ImageIcon className="w-4 h-4 shrink-0 text-slate-500" />
                   <input
                     type="url"
                     value={attachedImageUrl}
@@ -1351,13 +1418,14 @@ export const InboxView: React.FC<InboxViewProps> = ({
                 </div>
               )}
 
-              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl p-2.5 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all shadow-inner">
+              {/* Caja de Texto Principal (Composer) */}
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl p-2 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all shadow-inner">
                 <button
                   type="button"
                   onClick={() => setShowAttachInput(!showAttachInput)}
                   title="Adjuntar imagen por URL o archivo"
                   aria-label="Adjuntar imagen por URL o archivo"
-                  className={`p-2 rounded-xl transition-colors cursor-pointer ${
+                  className={`p-2 rounded-xl transition-colors cursor-pointer shrink-0 ${
                     attachedImageUrl || showAttachInput
                       ? "bg-emerald-100 text-emerald-700"
                       : "text-slate-400 hover:text-slate-600 hover:bg-slate-200/60"
@@ -1380,11 +1448,33 @@ export const InboxView: React.FC<InboxViewProps> = ({
                   className="flex-1 bg-transparent text-xs text-slate-800 focus:outline-none resize-none px-1 font-medium"
                 />
 
+                {/* Botón de Nota de Voz IA integrado directamente en el Composer */}
+                <button
+                  type="button"
+                  onClick={handleSendVoiceNote}
+                  disabled={isVoiceNoteLoading || !inputText.trim()}
+                  title="Convertir el texto escrito en Nota de Voz de WhatsApp"
+                  aria-label="Enviar como nota de voz"
+                  className="p-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl transition-all disabled:opacity-40 cursor-pointer shrink-0 flex items-center gap-1 text-[11px] font-bold"
+                >
+                  <Mic
+                    className={`w-4 h-4 ${
+                      isVoiceNoteLoading
+                        ? "animate-pulse text-rose-600"
+                        : "text-emerald-700"
+                    }`}
+                  />
+                  <span className="hidden xl:inline">
+                    {isVoiceNoteLoading ? "Generando..." : "Audio"}
+                  </span>
+                </button>
+
+                {/* Botón Enviar Mensaje */}
                 <button
                   onClick={handleSend}
                   disabled={!inputText.trim() && !attachedImageUrl}
                   aria-label="Enviar mensaje"
-                  className="p-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl transition-all disabled:opacity-40 cursor-pointer shadow-md shadow-emerald-700/20 active:scale-95 shrink-0 flex items-center justify-center gap-1 font-bold"
+                  className="p-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl transition-all disabled:opacity-40 cursor-pointer shadow-md shadow-emerald-700/20 active:scale-95 shrink-0 flex items-center justify-center"
                 >
                   <Send className="w-4 h-4" />
                 </button>
