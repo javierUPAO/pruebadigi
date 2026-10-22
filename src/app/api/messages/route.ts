@@ -109,6 +109,7 @@ export async function POST(req: NextRequest) {
         await bumpLastMessage(pg, body.conversationId, {
           text: body.text || "[Imagen adjunta]",
           sender: body.sender,
+          timestamp: body.timestamp,
         });
       }
     }

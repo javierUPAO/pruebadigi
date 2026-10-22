@@ -510,20 +510,23 @@ export default function HomePage() {
       [conversationId]: [...(prev[conversationId] || []), newMsg],
     }));
 
-    // Update Conversation Last Message
-    setConversations((prev) =>
-      prev.map((c) => {
-        if (c.id === conversationId) {
-          return {
-            ...c,
-            lastMessage: mediaUrl ? `📷 ${text || "Imagen adjunta"}` : text,
-            lastMessageTime: "Ahora",
-            unreadCount: 0,
-          };
-        }
-        return c;
-      }),
-    );
+    // Update Conversation Last Message & Move to Top in Real-Time
+    const nowIso = new Date().toISOString();
+    setConversations((prev) => {
+      const target = prev.find((c) => c.id === conversationId);
+      if (!target) return prev;
+
+      const updated: Conversation = {
+        ...target,
+        lastMessage: mediaUrl ? `📷 ${text || "Imagen adjunta"}` : text,
+        lastMessageTime: timestamp,
+        unreadCount: 0,
+        ...({ updatedAt: nowIso } as any),
+      };
+
+      const rest = prev.filter((c) => c.id !== conversationId);
+      return [updated, ...rest];
+    });
 
     if (conv.channel === "whatsapp") {
       // Priorizar el handle si contiene @lid (es el identificador real de WhatsApp).
@@ -667,17 +670,14 @@ export default function HomePage() {
       if (saved.contact) {
         setContacts((prev) =>
           prev.some((c) => c.id === saved!.contact!.id)
-            ? prev
+            ? prev.map((c) =>
+                c.id === saved!.contact!.id ? saved!.contact! : c,
+              )
             : [saved!.contact!, ...prev],
         );
       }
       if (saved.isNewConversation) {
-        setConversations((prev) => [saved!.conversation!, ...prev]);
         setActiveConversationId(targetId);
-      } else {
-        setConversations((prev) =>
-          prev.map((c) => (c.id === targetId ? saved!.conversation! : c)),
-        );
       }
     } else {
       // Fallback: la BD no respondio; igual mostramos el chat en memoria.
@@ -732,7 +732,7 @@ export default function HomePage() {
       }
     }
 
-    // Agregar el mensaje al thread.
+    // Agregar el mensaje al thread en tiempo real
     const incomingMsg: Message = {
       id: saved?.message?.id || messageId,
       conversationId: targetId,
@@ -752,23 +752,33 @@ export default function HomePage() {
       [targetId]: dedupeMessages([...(prev[targetId] || []), incomingMsg]),
     }));
 
-    setConversations((prev) =>
-      prev.map((c) => {
-        if (c.id === targetId) {
-          const mediaLabel = raw.hasMedia ? getMediaLabel(raw.mediaType) : "";
-          const lastMessageDisplay = text || mediaLabel || "[Mensaje]";
-          return {
-            ...c,
-            lastMessage: lastMessageDisplay,
-            lastMessageTime: saved ? "Ahora" : timestampLbl,
-            unreadCount: (c.unreadCount || 0) + 1,
-          };
-        }
-        return c;
-      }),
-    );
-  };
+    // Mover la conversación (nueva o existente) al PRIMER lugar en tiempo real
+    const mediaLabel = raw.hasMedia ? getMediaLabel(raw.mediaType) : "";
+    const lastMessageDisplay = text || mediaLabel || "[Mensaje]";
+    const realTimeLbl = saved?.conversation?.lastMessageTime || timestampLbl;
+    const nowIso = new Date().toISOString();
 
+    setConversations((prev) => {
+      const existing = prev.find((c) => c.id === targetId);
+      const baseConv = existing || saved?.conversation;
+      if (!baseConv) return prev;
+
+      const updatedConv: Conversation = {
+        ...baseConv,
+        contact: saved?.contact || baseConv.contact,
+        lastMessage: lastMessageDisplay,
+        lastMessageTime: realTimeLbl,
+        unreadCount: existing
+          ? (existing.unreadCount || 0) + 1
+          : saved?.conversation?.unreadCount || 1,
+        ...({ updatedAt: nowIso } as any),
+      };
+
+      const rest = prev.filter((c) => c.id !== targetId);
+      return [updatedConv, ...rest];
+    });
+  };
+  ///
   const handleOutgoingWhatsAppMessage = (raw: OutgoingWhatsAppMessage) => {
     if (!raw || typeof raw !== "object") return;
 
@@ -824,18 +834,23 @@ export default function HomePage() {
       [targetId]: dedupeMessages([...(prev[targetId] || []), outgoingMsg]),
     }));
 
-    setConversations((prev) =>
-      prev.map((c) => {
-        if (c.id !== targetId) return c;
+    const nowIso = new Date().toISOString();
 
-        return {
-          ...c,
-          lastMessage: raw.text || "[Mensaje]",
-          lastMessageTime: raw.timestamp || "Ahora",
-          unreadCount: 0,
-        };
-      }),
-    );
+    setConversations((prev) => {
+      const target = prev.find((c) => c.id === targetId);
+      if (!target) return prev;
+
+      const updated: Conversation = {
+        ...target,
+        lastMessage: raw.text || "[Mensaje]",
+        lastMessageTime: raw.timestamp || formatTime(),
+        unreadCount: 0,
+        ...({ updatedAt: nowIso } as any),
+      };
+
+      const rest = prev.filter((c) => c.id !== targetId);
+      return [updated, ...rest];
+    });
   };
 
   // El socket se suscribe una sola vez; el handler lee los datos frescos via ref.
