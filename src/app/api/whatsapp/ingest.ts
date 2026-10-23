@@ -328,6 +328,7 @@ export async function handleIncomingPayload(
     await bumpLastMessage(db, conversation.id, {
       text: lastMsgText,
       sender: "contact",
+      timestamp: timestampLbl, // <-- Pasamos la hora real del mensaje
     });
 
     // 4. Mensaje en MongoDB (upsert por id: el polling inicial y el socket
@@ -387,10 +388,11 @@ export async function handleIncomingPayload(
       channel: "whatsapp",
       unreadCount: (conversation.unreadCount || 0) + 1,
       lastMessage: lastMsgText,
-      lastMessageTime: "Ahora",
+      lastMessageTime: timestampLbl,
       status: conversation.status as Conversation["status"],
       assignedAgent: conversation.assignedAgent,
-    };
+      updatedAt: new Date().toISOString(),
+    } as Conversation;
 
     return NextResponse.json({
       success: true,

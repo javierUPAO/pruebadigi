@@ -282,6 +282,26 @@ export const InboxView: React.FC<InboxViewProps> = ({
     Record<string, { text: string; time: string }>
   >({});
 
+  // Limpia el override de borrado cuando entra o sale un mensaje nuevo en tiempo real
+  useEffect(() => {
+    setLastMessageOverrides((prev) => {
+      if (Object.keys(prev).length === 0) return prev;
+      const next = { ...prev };
+      let changed = false;
+      for (const conv of conversations) {
+        if (
+          next[conv.id] &&
+          (next[conv.id].text !== conv.lastMessage ||
+            next[conv.id].time !== conv.lastMessageTime)
+        ) {
+          delete next[conv.id];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [conversations]);
+
   const handleQuickRepliesMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -346,6 +366,13 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
   const handleSend = () => {
     if ((!inputText.trim() && !attachedImageUrl) || !activeConv) return;
+    // Limpiar override si existía para que se vea el mensaje enviado en tiempo real
+    setLastMessageOverrides((prev) => {
+      if (!prev[activeConv.id]) return prev;
+      const next = { ...prev };
+      delete next[activeConv.id];
+      return next;
+    });
     onSendMessage(
       activeConv.id,
       inputText.trim(),
