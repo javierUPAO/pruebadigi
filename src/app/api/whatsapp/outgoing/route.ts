@@ -22,6 +22,7 @@ interface OutgoingPayload {
   channel?: string;
   source?: string;
   status?: string;
+  isSummary?: boolean;
 }
 
 function authorizeInternalRequest(req: NextRequest): boolean {
@@ -216,9 +217,11 @@ export async function POST(req: NextRequest) {
      * El mensaje salió del agente/Xiomara.
      * No incrementa unreadCount.
      */
+
     await bumpLastMessage(pg, conversationId, {
       text,
       sender,
+      summary: body.isSummary ? body.text : undefined,
     });
 
     /*
@@ -298,6 +301,7 @@ export async function POST(req: NextRequest) {
         senderName,
         status,
         isNewConversation,
+        isSummary: !!body.isSummary,
         alreadyExisted:
           mongoResult.matchedCount > 0 && mongoResult.upsertedCount === 0,
       },
