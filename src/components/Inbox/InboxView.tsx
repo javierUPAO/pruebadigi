@@ -53,6 +53,7 @@ import {
   Rocket,
   Briefcase,
   Trash2,
+  Maximize2,
 } from "lucide-react";
 import { FacebookIcon } from "../icons/FacebookIcon";
 import { QuickRepliesModal } from "./QuickRepliesModal";
@@ -198,6 +199,11 @@ export const InboxView: React.FC<InboxViewProps> = ({
   const [tagInput, setTagInput] = useState<string>("");
   const [isQuickRepliesModalOpen, setIsQuickRepliesModalOpen] =
     useState<boolean>(false);
+  const [mediaPreview, setMediaPreview] = useState<{
+    src: string;
+    alt: string;
+    type: "image" | "video";
+  } | null>(null);
 
   const [isQuickRepliesExpanded, setIsQuickRepliesExpanded] =
     useState<boolean>(false);
@@ -245,6 +251,26 @@ export const InboxView: React.FC<InboxViewProps> = ({
     conversations[0];
   const activeMessages = activeConv ? messagesMap[activeConv.id] || [] : [];
   const contact = activeConv?.contact;
+
+  const openVideoPreview = (
+    src: string,
+    alt: string,
+    trigger: HTMLButtonElement,
+  ) => {
+    trigger.parentElement?.querySelector("video")?.pause();
+    setMediaPreview({ src, alt, type: "video" });
+  };
+
+  useEffect(() => {
+    if (!mediaPreview) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMediaPreview(null);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mediaPreview]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -1177,26 +1203,47 @@ export const InboxView: React.FC<InboxViewProps> = ({
                             <>
                               {msg.mediaType === "image" && (
                                 <div className="mb-2 rounded-xl overflow-hidden border border-black/10 bg-black/5 shadow-2xs">
-                                  <img
-                                    src={`data:${msg.media.mimetype};base64,${msg.media.data}`}
-                                    alt={msg.media.filename || "Imagen"}
-                                    className="w-full max-h-60 object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                                  <button
+                                    type="button"
+                                    aria-label={`Ampliar ${msg.media.filename || "imagen"}`}
                                     onClick={() =>
-                                      window.open(
-                                        `data:${msg.media.mimetype};base64,${msg.media.data}`,
-                                        "_blank",
-                                      )
+                                      setMediaPreview({
+                                        src: `data:${msg.media.mimetype};base64,${msg.media.data}`,
+                                        alt: msg.media.filename || "Imagen",
+                                        type: "image",
+                                      })
                                     }
-                                  />
+                                    className="block w-full cursor-zoom-in"
+                                  >
+                                    <img
+                                      src={`data:${msg.media.mimetype};base64,${msg.media.data}`}
+                                      alt={msg.media.filename || "Imagen"}
+                                      className="w-full max-h-60 object-cover hover:opacity-95 transition-opacity"
+                                    />
+                                  </button>
                                 </div>
                               )}
                               {msg.mediaType === "video" && (
-                                <div className="mb-2 rounded-xl overflow-hidden border border-black/10 bg-black/5 shadow-2xs">
+                                <div className="relative mb-2 rounded-xl overflow-hidden border border-black/10 bg-black/5 shadow-2xs">
                                   <video
                                     src={`data:${msg.media.mimetype};base64,${msg.media.data}`}
                                     controls
-                                    className="w-full max-h-60 object-cover"
+                                    className="w-full max-h-60 object-contain"
                                   />
+                                  <button
+                                    type="button"
+                                    aria-label={`Ampliar ${msg.media.filename || "video"}`}
+                                    onClick={(event) =>
+                                      openVideoPreview(
+                                        `data:${msg.media.mimetype};base64,${msg.media.data}`,
+                                        msg.media.filename || "Video",
+                                        event.currentTarget,
+                                      )
+                                    }
+                                    className="absolute right-2 top-2 rounded-lg bg-black/65 p-2 text-white transition-colors hover:bg-black/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                                  >
+                                    <Maximize2 className="h-4 w-4" />
+                                  </button>
                                 </div>
                               )}
                               {msg.mediaType === "audio" && (
@@ -1244,16 +1291,50 @@ export const InboxView: React.FC<InboxViewProps> = ({
                               <div className="mb-2">
                                 <VoiceNotePlayer src={msg.mediaUrl} />
                               </div>
+                            ) : msg.mediaType === "video" ||
+                              msg.mediaUrl.startsWith("data:video/") ? (
+                              <div className="relative mb-2 rounded-xl overflow-hidden border border-black/10 bg-black/5 shadow-2xs">
+                                <video
+                                  src={msg.mediaUrl}
+                                  controls
+                                  className="w-full max-h-60 object-contain"
+                                />
+                                <button
+                                  type="button"
+                                  aria-label="Ampliar video adjunto"
+                                  onClick={(event) =>
+                                    openVideoPreview(
+                                      msg.mediaUrl,
+                                      "Video adjunto",
+                                      event.currentTarget,
+                                    )
+                                  }
+                                  className="absolute right-2 top-2 rounded-lg bg-black/65 p-2 text-white transition-colors hover:bg-black/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                                >
+                                  <Maximize2 className="h-4 w-4" />
+                                </button>
+                              </div>
                             ) : (
                               <div className="mb-2 rounded-xl overflow-hidden border border-black/10 bg-black/5 shadow-2xs">
-                                <img
-                                  src={msg.mediaUrl}
-                                  alt="Adjunto"
-                                  className="w-full max-h-60 object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                                <button
+                                  type="button"
+                                  aria-label="Ampliar imagen adjunta"
                                   onClick={() =>
-                                    window.open(msg.mediaUrl, "_blank")
+                                    msg.mediaUrl &&
+                                    setMediaPreview({
+                                      src: msg.mediaUrl,
+                                      alt: "Imagen adjunta",
+                                      type: "image",
+                                    })
                                   }
-                                />
+                                  className="block w-full cursor-zoom-in"
+                                >
+                                  <img
+                                    src={msg.mediaUrl}
+                                    alt="Adjunto"
+                                    className="w-full max-h-60 object-cover hover:opacity-95 transition-opacity"
+                                  />
+                                </button>
                               </div>
                             ))}
 
@@ -1784,6 +1865,48 @@ export const InboxView: React.FC<InboxViewProps> = ({
             }
           }}
         />
+      )}
+
+      {mediaPreview && (
+        <div
+          className="fixed inset-0 z-[100] flex flex-col bg-black/95 animate-fadeIn"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Vista previa de ${mediaPreview.type === "video" ? "video" : "imagen"}`}
+          onClick={() => setMediaPreview(null)}
+        >
+          <div className="flex h-14 shrink-0 items-center justify-between gap-4 px-4 text-white sm:px-6">
+            <p className="truncate text-sm font-medium">{mediaPreview.alt}</p>
+            <button
+              type="button"
+              onClick={() => setMediaPreview(null)}
+              aria-label="Cerrar vista previa"
+              className="rounded-full p-2 text-white/80 transition-colors hover:bg-white/15 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="flex min-h-0 flex-1 items-center justify-center p-4 sm:p-8">
+            {mediaPreview.type === "video" ? (
+              <video
+                src={mediaPreview.src}
+                controls
+                autoPlay
+                playsInline
+                aria-label={mediaPreview.alt}
+                onClick={(event) => event.stopPropagation()}
+                className="max-h-full max-w-full"
+              />
+            ) : (
+              <img
+                src={mediaPreview.src}
+                alt={mediaPreview.alt}
+                onClick={(event) => event.stopPropagation()}
+                className="max-h-full max-w-full select-none object-contain"
+              />
+            )}
+          </div>
+        </div>
       )}
 
       {/* Modal de Confirmación para Eliminar Mensaje del Cliente */}
