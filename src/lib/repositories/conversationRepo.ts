@@ -110,7 +110,12 @@ export async function updateConversation(
 export async function bumpLastMessage(
   db: PrismaClient,
   conversationId: string,
-  opts: { text: string; sender: string; timestamp?: string },
+  opts: {
+    text: string;
+    sender: string;
+    timestamp?: string;
+    summary?: string | null;
+  },
 ): Promise<void> {
   const incoming = opts.sender === "contact";
   const timeLabel =
@@ -130,6 +135,7 @@ export async function bumpLastMessage(
         lastMessageTime: timeLabel,
         unreadCount: incoming ? { increment: 1 } : 0,
         updatedAt: new Date(),
+        ...(opts.summary !== undefined ? { summary: opts.summary } : {}),
       },
     })
     .catch(() => null);
