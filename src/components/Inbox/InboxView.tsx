@@ -880,7 +880,12 @@ export const InboxView: React.FC<InboxViewProps> = ({
             )}
 
             {/* Message Thread */}
-            <div className="flex-1 p-5 overflow-y-auto space-y-3.5 bg-[#efeae2]/60 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px]">
+            <div className="relative flex-1 p-5 overflow-y-auto space-y-3.5 bg-[#efeae2]/60 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px]">
+            {loadingConvId && (
+  <div className="absolute inset-0 flex items-center justify-center bg-slate-900/40 z-20">
+    <div className="w-8 h-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+  </div>
+)}
               {activeMessages.map((msg) => {
                 const isAgent = msg.sender === "agent" || msg.sender === "bot";
                 return (
