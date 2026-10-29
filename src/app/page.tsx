@@ -563,7 +563,7 @@ export default function HomePage() {
             phone,
             type: "audio",
             media: mediaUrl,
-            mimetype: "audio/mpeg; codecs=opus",
+            mimetype: "audio/ogg; codecs=opus",
           });
         } else if (esVideo) {
           resultado = await sendMediaMessage({

@@ -500,6 +500,8 @@ export const InboxView: React.FC<InboxViewProps> = ({
         setInputText("");
       } else if (resData.success && resData.data?.simulated) {
         onSendMessage(activeConv.id, `🎙️ [Simulado: ${resData.data.message}]`);
+      } else {
+        alert(resData.details || resData.error || "No se pudo generar la nota de voz.");
       }
     } catch (err) {
       console.error("Error generating voice note:", err);
