@@ -194,6 +194,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
   const [mobileStage, setMobileStage] = useState<"list" | "chat" | "info">(
     "list",
   );
+  const [loadingConvId, setLoadingConvId] = useState<string | null>(null);
   const [inputText, setInputText] = useState<string>("");
   const [tagInput, setTagInput] = useState<string>("");
   const [isQuickRepliesModalOpen, setIsQuickRepliesModalOpen] =
@@ -821,8 +822,10 @@ export const InboxView: React.FC<InboxViewProps> = ({
                 <div
                   key={conv.id}
                   onClick={() => {
+                    setLoadingConvId(conv.id);
                     onSelectConversation(conv.id);
                     setMobileStage("chat");
+                    setTimeout(() => setLoadingConvId(null), 800);
                   }}
                   className={`p-3.5 flex items-start gap-3 cursor-pointer transition-all relative ${
                     isSelected
@@ -830,7 +833,13 @@ export const InboxView: React.FC<InboxViewProps> = ({
                       : "hover:bg-slate-50/90"
                   }`}
                 >
+                
                   <div className="relative shrink-0">
+                              {loadingConvId === conv.id && (
+            <div className="absolute inset-0 flex items-center justify-center bg-slate-900/60 z-10 rounded">
+              <div className="w-5 h-5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
                     <img
                       src={
                         conv.contact.avatar ||
