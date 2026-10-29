@@ -501,7 +501,11 @@ export const InboxView: React.FC<InboxViewProps> = ({
       } else if (resData.success && resData.data?.simulated) {
         onSendMessage(activeConv.id, `🎙️ [Simulado: ${resData.data.message}]`);
       } else {
-        alert(resData.details || resData.error || "No se pudo generar la nota de voz.");
+        alert(
+          resData.details ||
+            resData.error ||
+            "No se pudo generar la nota de voz.",
+        );
       }
     } catch (err) {
       console.error("Error generating voice note:", err);
@@ -861,13 +865,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
                       : "hover:bg-slate-50/90"
                   }`}
                 >
-                
                   <div className="relative shrink-0">
-                              {loadingConvId === conv.id && (
-            <div className="absolute inset-0 flex items-center justify-center bg-slate-900/60 z-10 rounded">
-              <div className="w-5 h-5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-            </div>
-          )}
                     <img
                       src={
                         conv.contact.avatar ||
@@ -1164,7 +1162,12 @@ export const InboxView: React.FC<InboxViewProps> = ({
             )}
 
             {/* Message Thread */}
-            <div className="flex-1 p-5 overflow-y-auto space-y-3.5 bg-[#efeae2]/60 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px]">
+            <div className="relative flex-1 p-5 overflow-y-auto space-y-3.5 bg-[#efeae2]/60 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px]">
+              {loadingConvId && (
+                <div className="absolute inset-0 flex items-center justify-center bg-slate-900/40 z-20">
+                  <div className="w-8 h-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
               {activeMessages
                 .filter(
                   (msg) =>
