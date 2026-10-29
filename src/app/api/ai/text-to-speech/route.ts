@@ -72,27 +72,30 @@ export async function POST(req: NextRequest) {
         const maxRetries = 3;
         let audioData: string | undefined;
 
+        const prompt = `Please read the following text transcript verbatim without answering or adding commentary:\n<transcript>\n${text.trim()}\n</transcript>`;
+
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            const response = await ai.models.generateContent({
-                model: process.env.GEMINI_TTS_MODEL_ID || 'gemini-2.5-flash-preview-tts',
-                contents: [{ role: 'user', parts: [{ text }] }],
-                config: {
-                    responseModalities: ['audio'],
-                    speechConfig: {
-                        voiceConfig: {
-                            prebuiltVoiceConfig: { voiceName: 'Kore' }
+            try {
+                const response = await ai.models.generateContent({
+                    model: process.env.GEMINI_TTS_MODEL_ID || 'gemini-2.5-flash-preview-tts',
+                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                    config: {
+                        responseModalities: ['audio'],
+                        speechConfig: {
+                            voiceConfig: {
+                                prebuiltVoiceConfig: { voiceName: 'Kore' }
+                            }
                         }
                     }
-                }
-            });
+                });
 
-            audioData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+                audioData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+                if (audioData) break;
 
-            if (audioData) break;
-
-            logger.error(`Intento ${attempt}/${maxRetries} sin audio (finishReason: ${response.candidates?.[0]?.finishReason})`);
-
-            if (attempt < maxRetries) {
+                logger.error(`Intento ${attempt}/${maxRetries} sin audio (finishReason: ${response.candidates?.[0]?.finishReason})`);
+            } catch (attemptErr: any) {
+                if (attempt === maxRetries) throw attemptErr;
+                logger.warn(`Intento ${attempt}/${maxRetries} falló, reintentando...`, { error: attemptErr.message });
                 await new Promise((resolve) => setTimeout(resolve, attempt * 1500));
             }
         }
@@ -107,10 +110,20 @@ export async function POST(req: NextRequest) {
     } catch (error: any) {
         const errorId = captureException(error, { route: '/api/ai/text-to-speech', method: 'POST' });
         logger.error('Error in /api/ai/text-to-speech', { motivo: motivo(error) });
+
+        let userFriendlyError = 'Error al generar nota de voz';
+        const msg = error?.message || '';
+        if (msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED')) {
+            userFriendlyError = 'Límite de cuota diaria de Gemini alcanzado (plan gratuito: 10 notas de voz por día). Se requiere vincular facturación (Pay-as-you-go) en Google AI Studio o esperar al reinicio diario.';
+        } else if (msg.includes('400') || msg.includes('INVALID_ARGUMENT')) {
+            userFriendlyError = 'El texto no pudo ser interpretado como audio por el motor de voz.';
+        }
+
         return NextResponse.json(
             {
                 success: false,
-                error: 'Error al generar nota de voz',
+                error: userFriendlyError,
+                details: userFriendlyError,
                 errorId,
             },
             { status: 500 }

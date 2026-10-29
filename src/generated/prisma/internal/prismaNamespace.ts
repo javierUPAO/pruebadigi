@@ -1933,6 +1933,7 @@ export const ContactScalarFieldEnum = {
   stage: 'stage',
   dealValue: 'dealValue',
   notes: 'notes',
+  tags: 'tags',
   location: 'location',
   company: 'company',
   customFields: 'customFields',

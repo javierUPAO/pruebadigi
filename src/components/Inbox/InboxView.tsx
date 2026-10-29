@@ -52,7 +52,10 @@ import {
   Headset,
   Rocket,
   Briefcase,
+  Trash2,
+  Maximize2,
 } from "lucide-react";
+import { FacebookIcon } from "../icons/FacebookIcon";
 import { QuickRepliesModal } from "./QuickRepliesModal";
 import { VoiceNotePlayer } from "./VoiceNotePlayer";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
@@ -79,6 +82,7 @@ interface InboxViewProps {
   pathname: string;
   searchParams: ReadonlyURLSearchParams;
   router: AppRouterInstance;
+  onDeleteMessage?: (conversationId: string, messageId: string) => void;
 }
 
 interface CollapsibleSectionProps {
@@ -91,6 +95,23 @@ interface CollapsibleSectionProps {
   headerExtra?: React.ReactNode;
   bgClassName?: string;
 }
+
+const getReferencedChannels = (text: string): SocialChannel[] => {
+  if (!text) return [];
+  const match = text.match(/\[Ref:\s*([A-Za-z])/i);
+  if (!match) return [];
+
+  const prefix = match[1].toUpperCase();
+  const channels: SocialChannel[] = [];
+
+  if (prefix === "F") {
+    channels.push("messenger");
+  } else if (prefix === "I") {
+    channels.push("instagram");
+  }
+
+  return channels;
+};
 
 const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
   sectionKey,
@@ -159,6 +180,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
   onSelectConversation,
   messagesMap,
   onSendMessage,
+  onDeleteMessage,
   onUpdateContactStage,
   onUpdateContactTags,
   onUpdateContactNotes,
@@ -177,6 +199,14 @@ export const InboxView: React.FC<InboxViewProps> = ({
   const [inputText, setInputText] = useState<string>("");
   const [tagInput, setTagInput] = useState<string>("");
   const [isQuickRepliesModalOpen, setIsQuickRepliesModalOpen] =
+    useState<boolean>(false);
+  const [mediaPreview, setMediaPreview] = useState<{
+    src: string;
+    alt: string;
+    type: "image" | "video";
+  } | null>(null);
+
+  const [isQuickRepliesExpanded, setIsQuickRepliesExpanded] =
     useState<boolean>(false);
   const [attachedImageUrl, setAttachedImageUrl] = useState<string>("");
   const [showAttachInput, setShowAttachInput] = useState<boolean>(false);
@@ -223,16 +253,37 @@ export const InboxView: React.FC<InboxViewProps> = ({
   const activeMessages = activeConv ? messagesMap[activeConv.id] || [] : [];
   const contact = activeConv?.contact;
 
+  const openVideoPreview = (
+    src: string,
+    alt: string,
+    trigger: HTMLButtonElement,
+  ) => {
+    trigger.parentElement?.querySelector("video")?.pause();
+    setMediaPreview({ src, alt, type: "video" });
+  };
+
+  useEffect(() => {
+    if (!mediaPreview) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMediaPreview(null);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mediaPreview]);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (activeConversationId !== "") {
+      setMobileStage("chat");
+    } else {
       setMobileStage("list");
     }
-    setMobileStage("chat");
-  }, []);
+  }, [activeConversationId]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); // o 'auto' para salto inmediato
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [activeMessages]);
 
   const [isVoiceNoteLoading, setIsVoiceNoteLoading] = useState<boolean>(false);
@@ -249,6 +300,35 @@ export const InboxView: React.FC<InboxViewProps> = ({
     });
   };
 
+  const [messageToDelete, setMessageToDelete] = useState<Message | null>(null);
+  const [isDeletingMessage, setIsDeletingMessage] = useState<boolean>(false);
+  const [deletedMessageIds, setDeletedMessageIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [lastMessageOverrides, setLastMessageOverrides] = useState<
+    Record<string, { text: string; time: string }>
+  >({});
+
+  // Limpia el override de borrado cuando entra o sale un mensaje nuevo en tiempo real
+  useEffect(() => {
+    setLastMessageOverrides((prev) => {
+      if (Object.keys(prev).length === 0) return prev;
+      const next = { ...prev };
+      let changed = false;
+      for (const conv of conversations) {
+        if (
+          next[conv.id] &&
+          (next[conv.id].text !== conv.lastMessage ||
+            next[conv.id].time !== conv.lastMessageTime)
+        ) {
+          delete next[conv.id];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [conversations]);
+
   const handleQuickRepliesMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -264,8 +344,22 @@ export const InboxView: React.FC<InboxViewProps> = ({
   };
 
   const filteredConversations = conversations.filter((c) => {
+    const refChannels = getReferencedChannels(c.lastMessage);
+    const hasFbTag =
+      c.contact.tags?.includes("Facebook Lead") ||
+      refChannels.includes("messenger");
+    const hasIgTag =
+      c.contact.tags?.includes("Instagram Lead") ||
+      refChannels.includes("instagram");
+
     const matchesChannel =
-      channelFilter === "all" || c.channel === channelFilter;
+      channelFilter === "all" ||
+      c.channel === channelFilter ||
+      (channelFilter === "messenger" &&
+        (hasFbTag || c.channel === "messenger")) ||
+      (channelFilter === "instagram" &&
+        (hasIgTag || c.channel === "instagram"));
+
     const matchesSearch =
       !searchQuery ||
       c.contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -273,11 +367,39 @@ export const InboxView: React.FC<InboxViewProps> = ({
       c.contact.tags.some((t) =>
         t.toLowerCase().includes(searchQuery.toLowerCase()),
       );
+
     return matchesChannel && matchesSearch;
   });
 
+  // Contadores rápidos por canal para los filtros
+  const channelCounts = conversations.reduce(
+    (acc, c) => {
+      const ref = getReferencedChannels(c.lastMessage);
+      const isFb =
+        c.contact.tags?.includes("Facebook Lead") ||
+        ref.includes("messenger") ||
+        c.channel === "messenger";
+      const isIg =
+        c.contact.tags?.includes("Instagram Lead") ||
+        ref.includes("instagram") ||
+        c.channel === "instagram";
+      if (c.channel === "whatsapp") acc.whatsapp++;
+      if (isIg) acc.instagram++;
+      if (isFb) acc.messenger++;
+      return acc;
+    },
+    { whatsapp: 0, instagram: 0, messenger: 0 },
+  );
+
   const handleSend = () => {
     if ((!inputText.trim() && !attachedImageUrl) || !activeConv) return;
+    // Limpiar override si existía para que se vea el mensaje enviado en tiempo real
+    setLastMessageOverrides((prev) => {
+      if (!prev[activeConv.id]) return prev;
+      const next = { ...prev };
+      delete next[activeConv.id];
+      return next;
+    });
     onSendMessage(
       activeConv.id,
       inputText.trim(),
@@ -288,6 +410,56 @@ export const InboxView: React.FC<InboxViewProps> = ({
     setAttachedImageUrl("");
     setShowAttachInput(false);
     setAiSuggestions(null);
+  };
+
+  const handleConfirmDeleteMessage = async () => {
+    if (!messageToDelete || !activeConv) return;
+    setIsDeletingMessage(true);
+
+    // Toma "id" (ej. m_1791400448432) o "_id" (ej. 6ac69a022f147a829fc5165e)
+    const targetId = messageToDelete.id || (messageToDelete as any)._id;
+
+    try {
+      const response = await apiFetch(
+        `/api/messages?id=${encodeURIComponent(targetId)}`,
+        { method: "DELETE" },
+      );
+      const resData = await response.json();
+
+      if (resData.success) {
+        // Oculta el mensaje inmediatamente en la UI
+        setDeletedMessageIds((prev) => {
+          const next = new Set(prev);
+          if (messageToDelete.id) next.add(messageToDelete.id);
+          if ((messageToDelete as any)._id)
+            next.add((messageToDelete as any)._id);
+          return next;
+        });
+
+        // Notifica al componente padre si pasó la prop onDeleteMessage
+        if (onDeleteMessage) {
+          onDeleteMessage(activeConv.id, targetId);
+        }
+
+        // 2. Actualiza el preview de la conversación en la barra lateral izquierda
+        if (resData.lastMessage !== undefined && resData.lastMessage !== null) {
+          setLastMessageOverrides((prev) => ({
+            ...prev,
+            [activeConv.id]: {
+              text: resData.lastMessage,
+              time: resData.lastMessageTime ?? activeConv.lastMessageTime,
+            },
+          }));
+        }
+        setMessageToDelete(null);
+      } else {
+        console.error("No se pudo eliminar el mensaje:", resData.error);
+      }
+    } catch (err) {
+      console.error("Error al eliminar el mensaje:", err);
+    } finally {
+      setIsDeletingMessage(false);
+    }
   };
 
   const handleExecuteQuickReply = (qr: QuickReply) => {
@@ -328,6 +500,12 @@ export const InboxView: React.FC<InboxViewProps> = ({
         setInputText("");
       } else if (resData.success && resData.data?.simulated) {
         onSendMessage(activeConv.id, `🎙️ [Simulado: ${resData.data.message}]`);
+      } else {
+        alert(
+          resData.details ||
+            resData.error ||
+            "No se pudo generar la nota de voz.",
+        );
       }
     } catch (err) {
       console.error("Error generating voice note:", err);
@@ -448,30 +626,50 @@ export const InboxView: React.FC<InboxViewProps> = ({
     }
   };
 
-  const getChannelBadge = (ch: SocialChannel) => {
+  const getChannelBadge = (
+    ch: SocialChannel,
+    lastMessageText?: string,
+    contactTags: string[] = [],
+  ) => {
+    const refChannels = lastMessageText
+      ? getReferencedChannels(lastMessageText)
+      : [];
+    const isFromFbAd =
+      contactTags.includes("Facebook Lead") ||
+      refChannels.includes("messenger");
+    const isFromIgAd =
+      contactTags.includes("Instagram Lead") ||
+      refChannels.includes("instagram");
+
     switch (ch) {
       case "whatsapp":
         return (
-          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-300 font-extrabold rounded-full text-[10px] flex items-center gap-1 shadow-2xs">
-            <MessageCircle className="w-2.5 h-2.5" /> WhatsApp
+          <div className="flex items-center gap-1">
+            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-300 font-extrabold rounded-full text-[10px] flex items-center gap-1 shadow-2xs">
+              <MessageCircle className="w-2.5 h-2.5" /> WhatsApp
+            </span>
+            {isFromFbAd && (
+              <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-300 font-black rounded-md text-[9px] flex items-center gap-0.5">
+                <FacebookIcon className="w-2 h-2" /> Vía Facebook
+              </span>
+            )}
+            {isFromIgAd && (
+              <span className="px-1.5 py-0.5 bg-pink-50 text-pink-700 border border-pink-300 font-black rounded-md text-[9px] flex items-center gap-0.5">
+                <Instagram className="w-2 h-2" /> Vía Instagram
+              </span>
+            )}
+          </div>
+        );
+      case "messenger":
+        return (
+          <span className="px-2 py-0.5 bg-blue-50 text-blue-800 border border-blue-300 font-extrabold rounded-full text-[10px] flex items-center gap-1 shadow-2xs">
+            <FacebookIcon className="w-2.5 h-2.5" /> Facebook
           </span>
         );
       case "instagram":
         return (
           <span className="px-2 py-0.5 bg-pink-50 text-pink-800 border border-pink-300 font-extrabold rounded-full text-[10px] flex items-center gap-1 shadow-2xs">
             <Instagram className="w-2.5 h-2.5" /> Instagram
-          </span>
-        );
-      case "twitter":
-        return (
-          <span className="px-2 py-0.5 bg-sky-50 text-sky-800 border border-sky-300 font-extrabold rounded-full text-[10px] flex items-center gap-1 shadow-2xs">
-            <Twitter className="w-2.5 h-2.5" /> X / Twitter
-          </span>
-        );
-      case "messenger":
-        return (
-          <span className="px-2 py-0.5 bg-blue-50 text-blue-800 border border-blue-300 font-extrabold rounded-full text-[10px] flex items-center gap-1 shadow-2xs">
-            <MessageSquare className="w-2.5 h-2.5" /> Messenger
           </span>
         );
       default:
@@ -512,67 +710,124 @@ export const InboxView: React.FC<InboxViewProps> = ({
     }
   };
 
+  const activeRefChannels = activeConv
+    ? getReferencedChannels(activeConv.lastMessage)
+    : [];
+  const isActiveFbAd =
+    contact?.tags?.includes("Facebook Lead") ||
+    activeRefChannels.includes("messenger");
+  const isActiveIgAd =
+    contact?.tags?.includes("Instagram Lead") ||
+    activeRefChannels.includes("instagram");
+
+  const channelDisplayName = isActiveFbAd
+    ? "Facebook"
+    : isActiveIgAd
+      ? "Instagram"
+      : contact?.channel === "messenger"
+        ? "Facebook"
+        : contact?.channel || "WhatsApp";
   return (
     <div className="flex-1 flex overflow-hidden bg-slate-100 font-sans">
       {/* COLUMN 1: Conversation List & Filters */}
       <div
         className={`${mobileStage === "list" ? "flex" : "hidden"} lg:flex w-full lg:w-80 border-r border-slate-200/90 bg-white flex-col shrink-0 shadow-sm z-10`}
       >
-        <div className="p-3 border-b border-slate-200/80 bg-gradient-to-r from-slate-50 to-slate-100/50">
-          <div
-            className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar"
-            onWheel={(e) => {
-              if (e.deltaY === 0) return;
-              e.preventDefault();
-              e.currentTarget.scrollLeft += e.deltaY;
-            }}
-          >
+        <div className="p-2.5 border-b border-slate-200/80 bg-gradient-to-b from-slate-50 to-slate-100/60">
+          <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+            {/* TODOS */}
             <button
               onClick={() => setChannelFilter("all")}
-              className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap cursor-pointer transition-all ${
+              className={`px-2.5 py-1.5 rounded-xl font-bold flex items-center justify-between cursor-pointer transition-all border ${
                 channelFilter === "all"
-                  ? "bg-slate-900 text-white shadow-sm scale-102"
-                  : "text-slate-600 hover:bg-slate-200/70"
+                  ? "bg-slate-900 text-white border-slate-900 shadow-xs"
+                  : "bg-white text-slate-600 border-slate-200/80 hover:bg-slate-100"
               }`}
             >
-              <span className="inline-flex items-center gap-1">
-                <Globe className="w-3 h-3" /> Todos ({conversations.length})
+              <span className="inline-flex items-center gap-1.5 truncate">
+                <Globe className="w-3.5 h-3.5 shrink-0" />
+                <span>Todos</span>
+              </span>
+              <span
+                className={`px-1.5 py-0.2 rounded-md text-[10px] font-extrabold ${
+                  channelFilter === "all"
+                    ? "bg-white/20 text-white"
+                    : "bg-slate-100 text-slate-600"
+                }`}
+              >
+                {conversations.length}
               </span>
             </button>
+
+            {/* WHATSAPP */}
             <button
               onClick={() => setChannelFilter("whatsapp")}
-              className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap cursor-pointer transition-all ${
+              className={`px-2.5 py-1.5 rounded-xl font-bold flex items-center justify-between cursor-pointer transition-all border ${
                 channelFilter === "whatsapp"
-                  ? "bg-emerald-600 text-white shadow-sm shadow-emerald-700/20 scale-102"
-                  : "text-emerald-700 bg-emerald-50/60 hover:bg-emerald-100 border border-emerald-200/60"
+                  ? "bg-emerald-600 text-white border-emerald-600 shadow-xs shadow-emerald-700/15"
+                  : "bg-white text-emerald-700 border-emerald-200/80 hover:bg-emerald-50/70"
               }`}
             >
-              <span className="inline-flex items-center gap-1">
-                <MessageCircle className="w-3 h-3" /> WhatsApp
+              <span className="inline-flex items-center gap-1.5 truncate">
+                <MessageCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>WhatsApp</span>
+              </span>
+              <span
+                className={`px-1.5 py-0.2 rounded-md text-[10px] font-extrabold ${
+                  channelFilter === "whatsapp"
+                    ? "bg-white/20 text-white"
+                    : "bg-emerald-50 text-emerald-700"
+                }`}
+              >
+                {channelCounts.whatsapp}
               </span>
             </button>
+
+            {/* INSTAGRAM */}
             <button
               onClick={() => setChannelFilter("instagram")}
-              className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap cursor-pointer transition-all ${
+              className={`px-2.5 py-1.5 rounded-xl font-bold flex items-center justify-between cursor-pointer transition-all border ${
                 channelFilter === "instagram"
-                  ? "bg-pink-600 text-white shadow-sm shadow-pink-700/20 scale-102"
-                  : "text-pink-700 bg-pink-50/60 hover:bg-pink-100 border border-pink-200/60"
+                  ? "bg-pink-600 text-white border-pink-600 shadow-xs shadow-pink-700/15"
+                  : "bg-white text-pink-700 border-pink-200/80 hover:bg-pink-50/70"
               }`}
             >
-              <span className="inline-flex items-center gap-1">
-                <Instagram className="w-3 h-3" /> Instagram
+              <span className="inline-flex items-center gap-1.5 truncate">
+                <Instagram className="w-3.5 h-3.5 shrink-0" />
+                <span>Instagram</span>
+              </span>
+              <span
+                className={`px-1.5 py-0.2 rounded-md text-[10px] font-extrabold ${
+                  channelFilter === "instagram"
+                    ? "bg-white/20 text-white"
+                    : "bg-pink-50 text-pink-700"
+                }`}
+              >
+                {channelCounts.instagram}
               </span>
             </button>
+
+            {/* FACEBOOK */}
             <button
-              onClick={() => setChannelFilter("twitter")}
-              className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap cursor-pointer transition-all ${
-                channelFilter === "twitter"
-                  ? "bg-sky-600 text-white shadow-sm shadow-sky-700/20 scale-102"
-                  : "text-sky-700 bg-sky-50/60 hover:bg-sky-100 border border-sky-200/60"
+              onClick={() => setChannelFilter("messenger")}
+              className={`px-2.5 py-1.5 rounded-xl font-bold flex items-center justify-between cursor-pointer transition-all border ${
+                channelFilter === "messenger"
+                  ? "bg-blue-600 text-white border-blue-600 shadow-xs shadow-blue-700/15"
+                  : "bg-white text-blue-700 border-blue-200/80 hover:bg-blue-50/70"
               }`}
             >
-              <span className="inline-flex items-center gap-1">
-                <Twitter className="w-3 h-3" /> X / Twitter
+              <span className="inline-flex items-center gap-1.5 truncate">
+                <FacebookIcon className="w-3.5 h-3.5 shrink-0" />
+                <span>Facebook</span>
+              </span>
+              <span
+                className={`px-1.5 py-0.2 rounded-md text-[10px] font-extrabold ${
+                  channelFilter === "messenger"
+                    ? "bg-white/20 text-white"
+                    : "bg-blue-50 text-blue-700"
+                }`}
+              >
+                {channelCounts.messenger}
               </span>
             </button>
           </div>
@@ -587,6 +842,14 @@ export const InboxView: React.FC<InboxViewProps> = ({
           ) : (
             filteredConversations.map((conv) => {
               const isSelected = activeConv && activeConv.id === conv.id;
+              const refChannels = getReferencedChannels(conv.lastMessage);
+              const isFbAd =
+                conv.contact.tags?.includes("Facebook Lead") ||
+                refChannels.includes("messenger");
+              const isIgAd =
+                conv.contact.tags?.includes("Instagram Lead") ||
+                refChannels.includes("instagram");
+
               return (
                 <div
                   key={conv.id}
@@ -602,13 +865,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
                       : "hover:bg-slate-50/90"
                   }`}
                 >
-                
                   <div className="relative shrink-0">
-                              {loadingConvId === conv.id && (
-            <div className="absolute inset-0 flex items-center justify-center bg-slate-900/60 z-10 rounded">
-              <div className="w-5 h-5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-            </div>
-          )}
                     <img
                       src={
                         conv.contact.avatar ||
@@ -617,31 +874,44 @@ export const InboxView: React.FC<InboxViewProps> = ({
                       alt={conv.contact.name}
                       className="w-11 h-11 rounded-2xl object-cover border border-slate-200 shadow-2xs"
                     />
+
+                    {/* Badge del canal en la esquina de la foto */}
                     <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow-2xs border border-slate-100">
-                      {conv.channel === "whatsapp" ? (
-                        <MessageCircle className="w-2.5 h-2.5 text-emerald-600" />
-                      ) : conv.channel === "instagram" ? (
+                      {isFbAd || conv.channel === "messenger" ? (
+                        <FacebookIcon className="w-2.5 h-2.5 text-blue-600" />
+                      ) : isIgAd || conv.channel === "instagram" ? (
                         <Instagram className="w-2.5 h-2.5 text-pink-600" />
-                      ) : conv.channel === "twitter" ? (
-                        <Twitter className="w-2.5 h-2.5 text-sky-600" />
                       ) : (
-                        <MessageSquare className="w-2.5 h-2.5 text-blue-600" />
+                        <MessageCircle className="w-2.5 h-2.5 text-emerald-600" />
                       )}
                     </span>
                   </div>
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-0.5">
-                      <h4 className="font-extrabold text-xs text-slate-900 truncate">
-                        {conv.contact.name}
-                      </h4>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <h4 className="font-extrabold text-xs text-slate-900 truncate">
+                          {conv.contact.name}
+                        </h4>
+                        {isFbAd && (
+                          <span className="px-1 py-0.2 bg-blue-50 text-blue-700 border border-blue-200 text-[8px] font-black rounded shrink-0">
+                            Facebook
+                          </span>
+                        )}
+                        {isIgAd && (
+                          <span className="px-1 py-0.2 bg-pink-50 text-pink-700 border border-pink-200 text-[8px] font-black rounded shrink-0">
+                            Instagram
+                          </span>
+                        )}
+                      </div>
                       <span className="text-[10px] text-slate-400 font-semibold shrink-0">
-                        {conv.lastMessageTime}
+                        {lastMessageOverrides[conv.id]?.time ??
+                          conv.lastMessageTime}
                       </span>
                     </div>
 
                     <p className="text-xs text-slate-600 truncate mb-1.5 font-medium">
-                      {conv.lastMessage}
+                      {lastMessageOverrides[conv.id]?.text ?? conv.lastMessage}
                     </p>
 
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -691,14 +961,26 @@ export const InboxView: React.FC<InboxViewProps> = ({
                     alt={contact.name}
                     className="w-11 h-11 rounded-2xl object-cover border border-slate-200 shadow-xs"
                   />
-                  <span className="w-3 h-3 bg-emerald-500 rounded-full absolute -top-0.5 -right-0.5 border-2 border-white"></span>
+                  <span className="w-3.5 h-3.5 bg-white rounded-full absolute -top-0.5 -right-0.5 border border-slate-200 flex items-center justify-center shadow-2xs">
+                    {isActiveFbAd || contact.channel === "messenger" ? (
+                      <MessageSquare className="w-2 h-2 text-blue-600" />
+                    ) : isActiveIgAd || contact.channel === "instagram" ? (
+                      <Instagram className="w-2 h-2 text-pink-600" />
+                    ) : (
+                      <span className="w-2 h-2 bg-emerald-500 rounded-full" />
+                    )}
+                  </span>
                 </div>
                 <div className="min-w-0 overflow-hidden">
                   <div className="flex items-center gap-2 min-w-0">
                     <h3 className="font-extrabold text-sm text-slate-900 truncate min-w-0">
                       {contact.name}
                     </h3>
-                    {getChannelBadge(contact.channel)}
+                    {getChannelBadge(
+                      contact.channel,
+                      activeConv.lastMessage,
+                      contact.tags,
+                    )}
                   </div>
                   <p className="text-xs text-slate-500 font-medium flex items-center gap-1 min-w-0 overflow-hidden whitespace-nowrap">
                     <span className="flex items-center gap-1 truncate min-w-0">
@@ -733,48 +1015,6 @@ export const InboxView: React.FC<InboxViewProps> = ({
                 >
                   <Chrome className="w-3.5 h-3.5" />
                   <span className="hidden md:inline">Extensión XIO</span>
-                </button>
-
-                <button
-                  onClick={handleSummarizeConversation}
-                  disabled={isSummaryLoading || summaryWait > 0}
-                  title={
-                    summaryWait > 0
-                      ? `Límite de solicitudes excedido. Reintenta en ${summaryWait}s.`
-                      : undefined
-                  }
-                  className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-800 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  <span className="hidden md:inline">
-                    {summaryWait > 0
-                      ? `Espera ${summaryWait}s`
-                      : isSummaryLoading
-                        ? "Analizando..."
-                        : "Resumen IA"}
-                  </span>
-                </button>
-
-                <button
-                  onClick={handleGenerateAiSmartReplies}
-                  disabled={isAiLoading || suggestionsWait > 0}
-                  title={
-                    suggestionsWait > 0
-                      ? `Límite de solicitudes excedido. Reintenta en ${suggestionsWait}s.`
-                      : undefined
-                  }
-                  className="flex items-center gap-1.5 px-2.5 md:px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-extrabold shadow-sm shadow-emerald-700/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Sparkles
-                    className={`w-3.5 h-3.5 ${isAiLoading ? "animate-spin" : ""}`}
-                  />
-                  <span className="hidden sm:inline">
-                    {suggestionsWait > 0
-                      ? `Espera ${suggestionsWait}s`
-                      : isAiLoading
-                        ? "Generando..."
-                        : "Respuestas IA"}
-                  </span>
                 </button>
               </div>
             </div>
@@ -881,250 +1121,332 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
             {/* Message Thread */}
             <div className="relative flex-1 p-5 overflow-y-auto space-y-3.5 bg-[#efeae2]/60 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px]">
-            {loadingConvId && (
-  <div className="absolute inset-0 flex items-center justify-center bg-slate-900/40 z-20">
-    <div className="w-8 h-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-  </div>
-)}
-              {activeMessages.map((msg) => {
-                const isAgent = msg.sender === "agent" || msg.sender === "bot";
-                return (
-                  <div
-                    key={msg.id}
-                    className={`flex flex-col ${isAgent ? "items-end" : "items-start"}`}
-                  >
-                    <div className="flex items-center gap-1.5 mb-1 text-[10px] text-slate-500 font-semibold px-1">
-                      <span className="flex items-center gap-1">
-                        {msg.senderName ? (
-                          msg.senderName
-                        ) : isAgent ? (
-                          <>
-                            <Headset className="w-2.5 h-2.5" /> Asesor XIO
-                          </>
-                        ) : (
-                          contact.name
-                        )}
-                      </span>
-                      <span>•</span>
-                      <span>{msg.timestamp}</span>
-                      {msg.aiGenerated && (
-                        <span className="px-1.5 py-0.2 bg-emerald-200 text-emerald-900 font-extrabold rounded-md shadow-2xs flex items-center gap-1">
-                          <Sparkles className="w-2.5 h-2.5" /> Bot IA
-                        </span>
-                      )}
-                    </div>
+              {loadingConvId && (
+                <div className="absolute inset-0 flex items-center justify-center bg-slate-900/40 z-20">
+                  <div className="w-8 h-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+              {activeMessages
+                .filter(
+                  (msg) =>
+                    !deletedMessageIds.has(msg.id) &&
+                    !deletedMessageIds.has((msg as any)._id),
+                )
+                .map((msg) => {
+                  const isAgent =
+                    msg.sender === "agent" || msg.sender === "bot";
+                  const isClient = msg.sender === "contact";
 
+                  return (
                     <div
-                      className={`max-w-md rounded-2xl p-3.5 text-xs leading-relaxed shadow-sm transition-all ${
-                        isAgent
-                          ? "bg-[#dcf8c6] text-slate-900 rounded-tr-xs border border-emerald-300/80 shadow-emerald-900/5"
-                          : "bg-white text-slate-800 border border-slate-200/90 rounded-tl-xs shadow-slate-900/5"
-                      }`}
+                      key={msg.id || (msg as any)._id}
+                      className={`group flex flex-col ${isAgent ? "items-end" : "items-start"}`}
                     >
-                      {msg.hasMedia && msg.media && (
-                        <>
-                          {msg.mediaType === "image" && (
-                            <div className="mb-2 rounded-xl overflow-hidden border border-black/10 bg-black/5 shadow-2xs">
-                              <img
-                                src={`data:${msg.media.mimetype};base64,${msg.media.data}`}
-                                alt={msg.media.filename || "Imagen"}
-                                className="w-full max-h-60 object-cover cursor-pointer hover:opacity-95 transition-opacity"
-                                onClick={() =>
-                                  window.open(
-                                    `data:${msg.media.mimetype};base64,${msg.media.data}`,
-                                    "_blank",
-                                  )
-                                }
-                              />
-                            </div>
+                      <div className="flex items-center gap-1.5 mb-1 text-[10px] text-slate-500 font-semibold px-1">
+                        <span className="flex items-center gap-1">
+                          {msg.senderName ? (
+                            msg.senderName
+                          ) : isAgent ? (
+                            <>
+                              <Headset className="w-2.5 h-2.5" /> Asesor XIO
+                            </>
+                          ) : (
+                            contact.name
                           )}
-                          {msg.mediaType === "video" && (
-                            <div className="mb-2 rounded-xl overflow-hidden border border-black/10 bg-black/5 shadow-2xs">
-                              <video
-                                src={`data:${msg.media.mimetype};base64,${msg.media.data}`}
-                                controls
-                                className="w-full max-h-60 object-cover"
-                              />
-                            </div>
-                          )}
-                          {msg.mediaType === "audio" && (
-                            <div className="mb-2">
-                              <VoiceNotePlayer
-                                src={`data:${msg.media.mimetype};base64,${msg.media.data}`}
-                              />
-                            </div>
-                          )}
-                          {msg.mediaType === "document" && (
-                            <div className="mb-2 p-3 bg-slate-100 rounded-xl border border-slate-200 flex items-center gap-3">
-                              <FileText className="w-8 h-8 text-slate-500 shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-bold text-slate-800 truncate">
-                                  {msg.media.filename || "Documento"}
-                                </p>
-                                <p className="text-[10px] text-slate-500">
-                                  {msg.media.mimetype}
-                                </p>
-                              </div>
-                              <a
-                                href={`data:${msg.media.mimetype};base64,${msg.media.data}`}
-                                download={msg.media.filename || "documento"}
-                                className="px-2 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg text-[10px] font-bold transition-colors"
-                              >
-                                Descargar
-                              </a>
-                            </div>
-                          )}
-                          {msg.mediaType === "sticker" && (
-                            <div className="mb-2">
-                              <img
-                                src={`data:${msg.media.mimetype};base64,${msg.media.data}`}
-                                alt="Sticker"
-                                className="w-32 h-32 object-contain"
-                              />
-                            </div>
-                          )}
-                        </>
-                      )}
-
-                      {msg.mediaUrl &&
-                        !msg.hasMedia &&
-                        (msg.mediaUrl.startsWith("data:audio/") ? (
-                          <div className="mb-2">
-                            <VoiceNotePlayer src={msg.mediaUrl} />
-                          </div>
-                        ) : (
-                          <div className="mb-2 rounded-xl overflow-hidden border border-black/10 bg-black/5 shadow-2xs">
-                            <img
-                              src={msg.mediaUrl}
-                              alt="Adjunto"
-                              className="w-full max-h-60 object-cover cursor-pointer hover:opacity-95 transition-opacity"
-                              onClick={() =>
-                                window.open(msg.mediaUrl, "_blank")
-                              }
-                            />
-                          </div>
-                        ))}
-
-                      {msg.text && (
-                        <p className="whitespace-pre-line leading-relaxed font-medium">
-                          {msg.text}
-                        </p>
-                      )}
-
-                      <div className="flex items-center justify-end gap-1.5 text-[10px] text-slate-400 mt-1.5 font-medium">
+                        </span>
+                        <span>•</span>
                         <span>{msg.timestamp}</span>
-                        {isAgent && (
-                          <CheckCheck className="w-3 h-3 text-emerald-700" />
+                        {msg.aiGenerated && (
+                          <span className="px-1.5 py-0.2 bg-emerald-200 text-emerald-900 font-extrabold rounded-md shadow-2xs flex items-center gap-1">
+                            <Sparkles className="w-2.5 h-2.5" /> Bot IA
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 max-w-full">
+                        <div
+                          className={`max-w-md rounded-2xl p-3.5 text-xs leading-relaxed shadow-sm transition-all ${
+                            isAgent
+                              ? "bg-[#dcf8c6] text-slate-900 rounded-tr-xs border border-emerald-300/80 shadow-emerald-900/5"
+                              : "bg-white text-slate-800 border border-slate-200/90 rounded-tl-xs shadow-slate-900/5"
+                          }`}
+                        >
+                          {msg.hasMedia && msg.media && (
+                            <>
+                              {msg.mediaType === "image" && (
+                                <div className="mb-2 rounded-xl overflow-hidden border border-black/10 bg-black/5 shadow-2xs">
+                                  <button
+                                    type="button"
+                                    aria-label={`Ampliar ${msg.media.filename || "imagen"}`}
+                                    onClick={() =>
+                                      setMediaPreview({
+                                        src: `data:${msg.media.mimetype};base64,${msg.media.data}`,
+                                        alt: msg.media.filename || "Imagen",
+                                        type: "image",
+                                      })
+                                    }
+                                    className="block w-full cursor-zoom-in"
+                                  >
+                                    <img
+                                      src={`data:${msg.media.mimetype};base64,${msg.media.data}`}
+                                      alt={msg.media.filename || "Imagen"}
+                                      className="w-full max-h-60 object-cover hover:opacity-95 transition-opacity"
+                                    />
+                                  </button>
+                                </div>
+                              )}
+                              {msg.mediaType === "video" && (
+                                <div className="relative mb-2 rounded-xl overflow-hidden border border-black/10 bg-black/5 shadow-2xs">
+                                  <video
+                                    src={`data:${msg.media.mimetype};base64,${msg.media.data}`}
+                                    controls
+                                    className="w-full max-h-60 object-contain"
+                                  />
+                                  <button
+                                    type="button"
+                                    aria-label={`Ampliar ${msg.media.filename || "video"}`}
+                                    onClick={(event) =>
+                                      openVideoPreview(
+                                        `data:${msg.media.mimetype};base64,${msg.media.data}`,
+                                        msg.media.filename || "Video",
+                                        event.currentTarget,
+                                      )
+                                    }
+                                    className="absolute right-2 top-2 rounded-lg bg-black/65 p-2 text-white transition-colors hover:bg-black/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                                  >
+                                    <Maximize2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              )}
+                              {msg.mediaType === "audio" && (
+                                <div className="mb-2">
+                                  <VoiceNotePlayer
+                                    src={`data:${msg.media.mimetype};base64,${msg.media.data}`}
+                                  />
+                                </div>
+                              )}
+                              {msg.mediaType === "document" && (
+                                <div className="mb-2 p-3 bg-slate-100 rounded-xl border border-slate-200 flex items-center gap-3">
+                                  <FileText className="w-8 h-8 text-slate-500 shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-bold text-slate-800 truncate">
+                                      {msg.media.filename || "Documento"}
+                                    </p>
+                                    <p className="text-[10px] text-slate-500">
+                                      {msg.media.mimetype}
+                                    </p>
+                                  </div>
+                                  <a
+                                    href={`data:${msg.media.mimetype};base64,${msg.media.data}`}
+                                    download={msg.media.filename || "documento"}
+                                    className="px-2 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg text-[10px] font-bold transition-colors"
+                                  >
+                                    Descargar
+                                  </a>
+                                </div>
+                              )}
+                              {msg.mediaType === "sticker" && (
+                                <div className="mb-2">
+                                  <img
+                                    src={`data:${msg.media.mimetype};base64,${msg.media.data}`}
+                                    alt="Sticker"
+                                    className="w-32 h-32 object-contain"
+                                  />
+                                </div>
+                              )}
+                            </>
+                          )}
+
+                          {msg.mediaUrl &&
+                            !msg.hasMedia &&
+                            (msg.mediaUrl.startsWith("data:audio/") ? (
+                              <div className="mb-2">
+                                <VoiceNotePlayer src={msg.mediaUrl} />
+                              </div>
+                            ) : msg.mediaType === "video" ||
+                              msg.mediaUrl.startsWith("data:video/") ? (
+                              <div className="relative mb-2 rounded-xl overflow-hidden border border-black/10 bg-black/5 shadow-2xs">
+                                <video
+                                  src={msg.mediaUrl}
+                                  controls
+                                  className="w-full max-h-60 object-contain"
+                                />
+                                <button
+                                  type="button"
+                                  aria-label="Ampliar video adjunto"
+                                  onClick={(event) =>
+                                    openVideoPreview(
+                                      msg.mediaUrl,
+                                      "Video adjunto",
+                                      event.currentTarget,
+                                    )
+                                  }
+                                  className="absolute right-2 top-2 rounded-lg bg-black/65 p-2 text-white transition-colors hover:bg-black/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                                >
+                                  <Maximize2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="mb-2 rounded-xl overflow-hidden border border-black/10 bg-black/5 shadow-2xs">
+                                <button
+                                  type="button"
+                                  aria-label="Ampliar imagen adjunta"
+                                  onClick={() =>
+                                    msg.mediaUrl &&
+                                    setMediaPreview({
+                                      src: msg.mediaUrl,
+                                      alt: "Imagen adjunta",
+                                      type: "image",
+                                    })
+                                  }
+                                  className="block w-full cursor-zoom-in"
+                                >
+                                  <img
+                                    src={msg.mediaUrl}
+                                    alt="Adjunto"
+                                    className="w-full max-h-60 object-cover hover:opacity-95 transition-opacity"
+                                  />
+                                </button>
+                              </div>
+                            ))}
+
+                          {msg.text && (
+                            <p className="whitespace-pre-line leading-relaxed font-medium">
+                              {msg.text}
+                            </p>
+                          )}
+
+                          <div className="flex items-center justify-end gap-1.5 text-[10px] text-slate-400 mt-1.5 font-medium">
+                            <span>{msg.timestamp}</span>
+                            {isAgent && (
+                              <CheckCheck className="w-3 h-3 text-emerald-700" />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Botón de eliminar: SOLO se renderiza cuando sender === "contact" */}
+                        {isClient && (
+                          <button
+                            type="button"
+                            onClick={() => setMessageToDelete(msg)}
+                            title="Eliminar mensaje del cliente"
+                            aria-label="Eliminar mensaje del cliente"
+                            className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100 p-1.5 bg-white/90 hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200/80 hover:border-rose-200 rounded-xl shadow-2xs transition-all cursor-pointer shrink-0"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         )}
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
               <div ref={messagesEndRef} />
             </div>
 
             {/* Quick Templates Bar & Composer */}
             <div className="p-3 border-t border-slate-200 bg-white space-y-2 shadow-xs">
-              <div
-                className="relative"
-                onMouseMove={handleQuickRepliesMouseMove}
-                onMouseLeave={() => setHoverEdge(null)}
-              >
-                {hoverEdge === "left" && (
-                  <button
-                    onClick={() => scrollQuickReplies("left")}
-                    className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-6 h-6 bg-white border border-slate-200 rounded-full shadow-md flex items-center justify-center cursor-pointer hover:bg-slate-100 animate-fadeIn"
-                    aria-label="Desplazar a la izquierda"
-                  >
-                    <ChevronLeft className="w-3.5 h-3.5 text-slate-600" />
-                  </button>
-                )}
+              {/* Barra Superior de Respuestas Rápidas */}
+              <div className="flex items-start gap-1.5">
+                {/* 1. Botón Único Unificado: Abre el Modal de Gestión / Creación */}
+                <button
+                  type="button"
+                  onClick={() => setIsQuickRepliesModalOpen(true)}
+                  title="Gestionar y crear plantillas rápidas"
+                  className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-900 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-extrabold transition-colors cursor-pointer shadow-2xs"
+                >
+                  <Zap className="w-3 h-3 text-emerald-400 shrink-0" />
+                  <span>Plantillas</span>
+                  <span className="px-1.5 py-0.2 bg-white/15 text-white rounded-full text-[9px] font-mono">
+                    {quickReplies.length}
+                  </span>
+                  <Plus className="w-3 h-3 text-slate-300 shrink-0" />
+                </button>
 
+                {/* 2. Contenedor de Píldoras (1 línea compacta o Expandible en wrap) */}
                 <div
                   ref={quickRepliesScrollRef}
-                  className="flex items-center gap-1.5 overflow-x-auto text-xs pb-1 no-scrollbar"
+                  onWheel={(e) => {
+                    if (!isQuickRepliesExpanded && e.deltaY !== 0) {
+                      e.preventDefault();
+                      e.currentTarget.scrollLeft += e.deltaY;
+                    }
+                  }}
+                  className={`flex-1 flex items-center gap-1.5 text-xs transition-all ${
+                    isQuickRepliesExpanded
+                      ? "flex-wrap max-h-24 overflow-y-auto pr-1 scrollbar-thin"
+                      : "overflow-x-auto no-scrollbar whitespace-nowrap mask-fade-right"
+                  }`}
                 >
-                  <div className="flex items-center gap-1.5 shrink-0 bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-200">
-                    <span className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-1">
-                      <Zap className="w-3 h-3" />
-                      <span>Respuestas Rápidas</span>
-                      <span className="px-1.5 py-0.2 bg-emerald-600 text-white rounded-full text-[9px] font-mono font-bold">
-                        {quickReplies.length}
-                      </span>
-                    </span>
+                  {quickReplies.length === 0 ? (
                     <button
                       type="button"
                       onClick={() => setIsQuickRepliesModalOpen(true)}
-                      title="Configurar y crear plantillas ilimitadas"
-                      aria-label="Configurar y crear plantillas ilimitadas"
-                      className="p-1 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                      className="text-[11px] text-slate-400 hover:text-emerald-600 italic py-0.5 cursor-pointer"
                     >
-                      <Edit3 className="w-3.5 h-3.5" />
+                      Sin plantillas rápidas. Haz clic aquí para crear la
+                      primera...
                     </button>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsQuickRepliesModalOpen(true)}
-                    className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-xl text-[11px] font-extrabold shrink-0 flex items-center gap-1 cursor-pointer transition-all shadow-2xs hover:scale-105"
-                    title="Crear una nueva plantilla de WhatsApp"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Plantilla</span>
-                  </button>
-
-                  {quickReplies.map((qr) => (
-                    <button
-                      key={qr.id}
-                      onClick={() => handleExecuteQuickReply(qr)}
-                      title={
-                        qr.imageUrl
-                          ? `Enviar: "${qr.text}" + Imagen adjunta`
-                          : `Insertar: "${qr.text}"`
-                      }
-                      className={`px-3 py-1 rounded-xl text-[11px] font-semibold shrink-0 flex items-center gap-1.5 transition-all cursor-pointer hover:scale-102 ${
-                        qr.imageUrl
-                          ? "bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-2xs font-bold"
-                          : "bg-slate-100 hover:bg-emerald-50 hover:border-emerald-300 border border-slate-200 text-slate-700"
-                      }`}
-                    >
-                      <span>{qr.emoji || "⚡"}</span>
-                      <span>{qr.title}</span>
-                      {qr.imageUrl && (
-                        <ImageIcon className="w-3 h-3 text-emerald-600" />
-                      )}
-                    </button>
-                  ))}
-
-                  <button
-                    onClick={handleSendVoiceNote}
-                    disabled={isVoiceNoteLoading || !inputText.trim()}
-                    className="px-3 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 rounded-xl text-[11px] font-extrabold shrink-0 flex items-center gap-1.5 cursor-pointer shadow-2xs disabled:opacity-40"
-                  >
-                    <Mic
-                      className={`w-3.5 h-3.5 ${isVoiceNoteLoading ? "animate-pulse" : ""}`}
-                    />
-                    <span>
-                      {isVoiceNoteLoading ? "Generando..." : "Audio WhatsApp"}
-                    </span>
-                  </button>
+                  ) : (
+                    quickReplies.map((qr) => (
+                      <button
+                        key={qr.id}
+                        type="button"
+                        onClick={() => handleExecuteQuickReply(qr)}
+                        title={
+                          qr.imageUrl
+                            ? `Enviar: "${qr.text}" + Imagen adjunta`
+                            : `Insertar: "${qr.text}"`
+                        }
+                        className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold shrink-0 inline-flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 ${
+                          qr.imageUrl
+                            ? "bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold"
+                            : "bg-slate-100 hover:bg-emerald-50 hover:text-emerald-900 hover:border-emerald-300 border border-slate-200/90 text-slate-700"
+                        }`}
+                      >
+                        <span>{qr.emoji || "⚡"}</span>
+                        <span className="max-w-[140px] truncate">
+                          {qr.title}
+                        </span>
+                        {qr.imageUrl && (
+                          <ImageIcon className="w-3 h-3 text-emerald-600 shrink-0" />
+                        )}
+                      </button>
+                    ))
+                  )}
                 </div>
 
-                {hoverEdge === "right" && (
+                {/* 3. Botón para expandir/contraer si hay varias plantillas */}
+                {quickReplies.length > 3 && (
                   <button
-                    onClick={() => scrollQuickReplies("right")}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-6 h-6 bg-white border border-slate-200 rounded-full shadow-md flex items-center justify-center cursor-pointer hover:bg-slate-100 animate-fadeIn"
-                    aria-label="Desplazar a la derecha"
+                    type="button"
+                    onClick={() => setIsQuickRepliesExpanded((prev) => !prev)}
+                    title={
+                      isQuickRepliesExpanded
+                        ? "Contraer plantillas a una sola fila"
+                        : "Ver todas las plantillas"
+                    }
+                    className={`shrink-0 px-2 py-1 rounded-xl border text-[10px] font-extrabold inline-flex items-center gap-1 cursor-pointer transition-all ${
+                      isQuickRepliesExpanded
+                        ? "bg-emerald-50 border-emerald-300 text-emerald-800"
+                        : "bg-white hover:bg-slate-100 border-slate-200 text-slate-600"
+                    }`}
                   >
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
+                    <span className="hidden sm:inline">
+                      {isQuickRepliesExpanded ? "Menos" : "Todas"}
+                    </span>
+                    <ChevronDown
+                      className={`w-3 h-3 transition-transform duration-200 ${
+                        isQuickRepliesExpanded ? "rotate-180" : ""
+                      }`}
+                    />
                   </button>
                 )}
               </div>
 
+              {/* Input de Imagen Adjunta (cuando está activo) */}
               {showAttachInput && (
                 <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center gap-2 shadow-2xs">
-                  <ImageIcon className="w-4 h-4 shrink-0" />
+                  <ImageIcon className="w-4 h-4 shrink-0 text-slate-500" />
                   <input
                     type="url"
                     value={attachedImageUrl}
@@ -1176,13 +1498,14 @@ export const InboxView: React.FC<InboxViewProps> = ({
                 </div>
               )}
 
-              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl p-2.5 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all shadow-inner">
+              {/* Caja de Texto Principal (Composer) */}
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl p-2 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all shadow-inner">
                 <button
                   type="button"
                   onClick={() => setShowAttachInput(!showAttachInput)}
                   title="Adjuntar imagen por URL o archivo"
                   aria-label="Adjuntar imagen por URL o archivo"
-                  className={`p-2 rounded-xl transition-colors cursor-pointer ${
+                  className={`p-2 rounded-xl transition-colors cursor-pointer shrink-0 ${
                     attachedImageUrl || showAttachInput
                       ? "bg-emerald-100 text-emerald-700"
                       : "text-slate-400 hover:text-slate-600 hover:bg-slate-200/60"
@@ -1200,16 +1523,38 @@ export const InboxView: React.FC<InboxViewProps> = ({
                       handleSend();
                     }
                   }}
-                  placeholder={`Escribe un mensaje de WhatsApp para ${contact.name}...`}
+                  placeholder={`Escribe un mensaje (${channelDisplayName}) para ${contact.name}...`}
                   rows={2}
                   className="flex-1 bg-transparent text-xs text-slate-800 focus:outline-none resize-none px-1 font-medium"
                 />
 
+                {/* Botón de Nota de Voz IA integrado directamente en el Composer */}
+                <button
+                  type="button"
+                  onClick={handleSendVoiceNote}
+                  disabled={isVoiceNoteLoading || !inputText.trim()}
+                  title="Convertir el texto escrito en Nota de Voz de WhatsApp"
+                  aria-label="Enviar como nota de voz"
+                  className="p-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl transition-all disabled:opacity-40 cursor-pointer shrink-0 flex items-center gap-1 text-[11px] font-bold"
+                >
+                  <Mic
+                    className={`w-4 h-4 ${
+                      isVoiceNoteLoading
+                        ? "animate-pulse text-rose-600"
+                        : "text-emerald-700"
+                    }`}
+                  />
+                  <span className="hidden xl:inline">
+                    {isVoiceNoteLoading ? "Generando..." : "Audio"}
+                  </span>
+                </button>
+
+                {/* Botón Enviar Mensaje */}
                 <button
                   onClick={handleSend}
                   disabled={!inputText.trim() && !attachedImageUrl}
                   aria-label="Enviar mensaje"
-                  className="p-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl transition-all disabled:opacity-40 cursor-pointer shadow-md shadow-emerald-700/20 active:scale-95 shrink-0 flex items-center justify-center gap-1 font-bold"
+                  className="p-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl transition-all disabled:opacity-40 cursor-pointer shadow-md shadow-emerald-700/20 active:scale-95 shrink-0 flex items-center justify-center"
                 >
                   <Send className="w-4 h-4" />
                 </button>
@@ -1349,7 +1694,23 @@ export const InboxView: React.FC<InboxViewProps> = ({
               </button>
 
               <a
-                href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Reunión Demo / Asesoría: ${contact.name} - XIO`)}&dates=${calendarDate.replace(/-/g, "")}T${calendarTime.replace(/:/g, "")}00/${calendarDate.replace(/-/g, "")}T${calendarTime.replace(/:/g, "")}00&details=${encodeURIComponent(`Reunión agendada vía XIO.\nCliente: ${contact.name}\nEmpresa: ${contact.company || "N/A"}\nTel/WhatsApp: ${contact.phone || contact.handle}\nEmail: ${contact.email || "N/A"}\nNotas: ${contact.notes || ""}`)}&location=${encodeURIComponent("Google Meet / WhatsApp Video")}${contact.email ? `&add=${encodeURIComponent(contact.email)}` : ""}`}
+                href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
+                  `Reunión Demo / Asesoría: ${contact.name} - XIO`,
+                )}&dates=${calendarDate.replace(/-/g, "")}T${calendarTime.replace(
+                  /:/g,
+                  "",
+                )}00/${calendarDate.replace(/-/g, "")}T${calendarTime.replace(
+                  /:/g,
+                  "",
+                )}00&details=${encodeURIComponent(
+                  `Reunión agendada vía XIO.\nCliente: ${contact.name}\nEmpresa: ${
+                    contact.company || "N/A"
+                  }\nTel/WhatsApp: ${contact.phone || contact.handle}\nEmail: ${
+                    contact.email || "N/A"
+                  }\nNotas: ${contact.notes || ""}`,
+                )}&location=${encodeURIComponent(
+                  "Google Meet / WhatsApp Video",
+                )}${contact.email ? `&add=${encodeURIComponent(contact.email)}` : ""}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full py-2 bg-white hover:bg-slate-100 border border-slate-200 hover:border-slate-300 text-slate-700 font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-1 text-center shadow-2xs"
@@ -1476,6 +1837,98 @@ export const InboxView: React.FC<InboxViewProps> = ({
             }
           }}
         />
+      )}
+
+      {mediaPreview && (
+        <div
+          className="fixed inset-0 z-[100] flex flex-col bg-black/95 animate-fadeIn"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Vista previa de ${mediaPreview.type === "video" ? "video" : "imagen"}`}
+          onClick={() => setMediaPreview(null)}
+        >
+          <div className="flex h-14 shrink-0 items-center justify-between gap-4 px-4 text-white sm:px-6">
+            <p className="truncate text-sm font-medium">{mediaPreview.alt}</p>
+            <button
+              type="button"
+              onClick={() => setMediaPreview(null)}
+              aria-label="Cerrar vista previa"
+              className="rounded-full p-2 text-white/80 transition-colors hover:bg-white/15 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="flex min-h-0 flex-1 items-center justify-center p-4 sm:p-8">
+            {mediaPreview.type === "video" ? (
+              <video
+                src={mediaPreview.src}
+                controls
+                autoPlay
+                playsInline
+                aria-label={mediaPreview.alt}
+                onClick={(event) => event.stopPropagation()}
+                className="max-h-full max-w-full"
+              />
+            ) : (
+              <img
+                src={mediaPreview.src}
+                alt={mediaPreview.alt}
+                onClick={(event) => event.stopPropagation()}
+                className="max-h-full max-w-full select-none object-contain"
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmación para Eliminar Mensaje del Cliente */}
+      {messageToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-sm w-full p-5 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-extrabold text-sm text-slate-900">
+                  ¿Eliminar mensaje del cliente?
+                </h4>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Esta acción borrará permanentemente el mensaje de la base de
+                  datos de MongoDB y no se podrá deshacer.
+                </p>
+              </div>
+            </div>
+
+            {messageToDelete.text && (
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 italic line-clamp-3">
+                "{messageToDelete.text}"
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setMessageToDelete(null)}
+                disabled={isDeletingMessage}
+                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteMessage}
+                disabled={isDeletingMessage}
+                className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-extrabold shadow-sm shadow-rose-600/20 transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>
+                  {isDeletingMessage ? "Eliminando..." : "Sí, eliminar"}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -160,6 +160,7 @@ export default function HomePage() {
   }, []);
 
   const searchParams = useSearchParams();
+
   // Core CRM Datasets State
   const [contacts, setContacts] = useState<Contact[]>(INITIAL_CONTACTS);
   const [conversations, setConversations] = useState<Conversation[]>(
@@ -167,7 +168,10 @@ export default function HomePage() {
   );
   const [messagesMap, setMessagesMap] =
     useState<Record<string, Message[]>>(INITIAL_MESSAGES);
-  const [activeConversationId, setActiveConversationId] = useState<string>("");
+
+  const [activeConversationId, setActiveConversationId] = useState<string>(
+    () => searchParams?.get("id") || "",
+  );
 
   // Persistent Quick Replies
   const [quickReplies, setQuickReplies] = useState<QuickReply[]>(
@@ -340,6 +344,15 @@ export default function HomePage() {
               .filter((conv: any) => !!conv.contact);
             if (hydrated.length > 0) {
               setConversations(hydrated);
+              const currentUrlId = new URLSearchParams(
+                window.location.search,
+              ).get("id");
+              if (
+                currentUrlId &&
+                hydrated.some((c: any) => c.id === currentUrlId)
+              ) {
+                setActiveConversationId(currentUrlId);
+              }
             }
           }
         }
@@ -429,23 +442,20 @@ export default function HomePage() {
         );
         if (!res.ok) return;
         const data = await res.json();
-        if (
-          cancelled ||
-          !data.success ||
-          !Array.isArray(data.data) ||
-          data.data.length === 0
-        )
-          return;
+        if (cancelled || !data.success || !Array.isArray(data.data)) return;
 
-        setMessagesMap((prev) => {
-          const fetchedIds = new Set(data.data.map((m: Message) => m.id));
-          const pendingLocal = (prev[convId] || []).filter(
-            (m) => !fetchedIds.has(m.id),
-          );
-          return { ...prev, [convId]: [...data.data, ...pendingLocal] };
-        });
+        // Normalizamos los mensajes asegurando id y reemplazamos directamente
+        const freshMessages: Message[] = data.data.map((m: any) => ({
+          ...m,
+          id: m.id || m._id,
+        }));
+
+        setMessagesMap((prev) => ({
+          ...prev,
+          [convId]: freshMessages,
+        }));
       } catch {
-        // La conversación mantiene los mensajes que ya tuviera en memoria.
+        // La conversación mantiene los mensajes previos si falla la red
       }
     })();
 
@@ -453,6 +463,13 @@ export default function HomePage() {
       cancelled = true;
     };
   }, [activeConversationId, mounted]);
+
+  useEffect(() => {
+    const idFromUrl = searchParams?.get("id");
+    if (idFromUrl && idFromUrl !== activeConversationId) {
+      setActiveConversationId(idFromUrl);
+    }
+  }, [searchParams]);
 
   const isWhatsappServiceActive = whatsappSocketRef.current?.connected ?? false;
   const visibleConversations = isWhatsappServiceActive
@@ -493,20 +510,23 @@ export default function HomePage() {
       [conversationId]: [...(prev[conversationId] || []), newMsg],
     }));
 
-    // Update Conversation Last Message
-    setConversations((prev) =>
-      prev.map((c) => {
-        if (c.id === conversationId) {
-          return {
-            ...c,
-            lastMessage: mediaUrl ? `📷 ${text || "Imagen adjunta"}` : text,
-            lastMessageTime: "Ahora",
-            unreadCount: 0,
-          };
-        }
-        return c;
-      }),
-    );
+    // Update Conversation Last Message & Move to Top in Real-Time
+    const nowIso = new Date().toISOString();
+    setConversations((prev) => {
+      const target = prev.find((c) => c.id === conversationId);
+      if (!target) return prev;
+
+      const updated: Conversation = {
+        ...target,
+        lastMessage: mediaUrl ? `📷 ${text || "Imagen adjunta"}` : text,
+        lastMessageTime: timestamp,
+        unreadCount: 0,
+        ...({ updatedAt: nowIso } as any),
+      };
+
+      const rest = prev.filter((c) => c.id !== conversationId);
+      return [updated, ...rest];
+    });
 
     if (conv.channel === "whatsapp") {
       // Priorizar el handle si contiene @lid (es el identificador real de WhatsApp).
@@ -543,7 +563,7 @@ export default function HomePage() {
             phone,
             type: "audio",
             media: mediaUrl,
-            mimetype: "audio/mpeg; codecs=opus",
+            mimetype: "audio/ogg; codecs=opus",
           });
         } else if (esVideo) {
           resultado = await sendMediaMessage({
@@ -650,17 +670,14 @@ export default function HomePage() {
       if (saved.contact) {
         setContacts((prev) =>
           prev.some((c) => c.id === saved!.contact!.id)
-            ? prev
+            ? prev.map((c) =>
+                c.id === saved!.contact!.id ? saved!.contact! : c,
+              )
             : [saved!.contact!, ...prev],
         );
       }
       if (saved.isNewConversation) {
-        setConversations((prev) => [saved!.conversation!, ...prev]);
         setActiveConversationId(targetId);
-      } else {
-        setConversations((prev) =>
-          prev.map((c) => (c.id === targetId ? saved!.conversation! : c)),
-        );
       }
     } else {
       // Fallback: la BD no respondio; igual mostramos el chat en memoria.
@@ -715,7 +732,7 @@ export default function HomePage() {
       }
     }
 
-    // Agregar el mensaje al thread.
+    // Agregar el mensaje al thread en tiempo real
     const incomingMsg: Message = {
       id: saved?.message?.id || messageId,
       conversationId: targetId,
@@ -735,23 +752,33 @@ export default function HomePage() {
       [targetId]: dedupeMessages([...(prev[targetId] || []), incomingMsg]),
     }));
 
-    setConversations((prev) =>
-      prev.map((c) => {
-        if (c.id === targetId) {
-          const mediaLabel = raw.hasMedia ? getMediaLabel(raw.mediaType) : "";
-          const lastMessageDisplay = text || mediaLabel || "[Mensaje]";
-          return {
-            ...c,
-            lastMessage: lastMessageDisplay,
-            lastMessageTime: saved ? "Ahora" : timestampLbl,
-            unreadCount: (c.unreadCount || 0) + 1,
-          };
-        }
-        return c;
-      }),
-    );
-  };
+    // Mover la conversación (nueva o existente) al PRIMER lugar en tiempo real
+    const mediaLabel = raw.hasMedia ? getMediaLabel(raw.mediaType) : "";
+    const lastMessageDisplay = text || mediaLabel || "[Mensaje]";
+    const realTimeLbl = saved?.conversation?.lastMessageTime || timestampLbl;
+    const nowIso = new Date().toISOString();
 
+    setConversations((prev) => {
+      const existing = prev.find((c) => c.id === targetId);
+      const baseConv = existing || saved?.conversation;
+      if (!baseConv) return prev;
+
+      const updatedConv: Conversation = {
+        ...baseConv,
+        contact: saved?.contact || baseConv.contact,
+        lastMessage: lastMessageDisplay,
+        lastMessageTime: realTimeLbl,
+        unreadCount: existing
+          ? (existing.unreadCount || 0) + 1
+          : saved?.conversation?.unreadCount || 1,
+        ...({ updatedAt: nowIso } as any),
+      };
+
+      const rest = prev.filter((c) => c.id !== targetId);
+      return [updatedConv, ...rest];
+    });
+  };
+  ///
   const handleOutgoingWhatsAppMessage = (raw: OutgoingWhatsAppMessage) => {
     if (!raw || typeof raw !== "object") return;
 
@@ -807,18 +834,23 @@ export default function HomePage() {
       [targetId]: dedupeMessages([...(prev[targetId] || []), outgoingMsg]),
     }));
 
-    setConversations((prev) =>
-      prev.map((c) => {
-        if (c.id !== targetId) return c;
+    const nowIso = new Date().toISOString();
 
-        return {
-          ...c,
-          lastMessage: raw.text || "[Mensaje]",
-          lastMessageTime: raw.timestamp || "Ahora",
-          unreadCount: 0,
-        };
-      }),
-    );
+    setConversations((prev) => {
+      const target = prev.find((c) => c.id === targetId);
+      if (!target) return prev;
+
+      const updated: Conversation = {
+        ...target,
+        lastMessage: raw.text || "[Mensaje]",
+        lastMessageTime: raw.timestamp || formatTime(),
+        unreadCount: 0,
+        ...({ updatedAt: nowIso } as any),
+      };
+
+      const rest = prev.filter((c) => c.id !== targetId);
+      return [updated, ...rest];
+    });
   };
 
   // El socket se suscribe una sola vez; el handler lee los datos frescos via ref.
@@ -862,11 +894,13 @@ export default function HomePage() {
         setWhatsappStatus(st.data);
       }
     });
+
+    /* No se usa el historial de mensajes porque el socket ya emite los entrantes en tiempo real.
     getReceivedMessages(50).then((res) => {
       if (res.ok && Array.isArray(res.data.messages)) {
         res.data.messages.forEach((m) => incomingHandlerRef.current(m));
       }
-    });
+    }); */
 
     return () => {
       socket.disconnect();
@@ -874,8 +908,10 @@ export default function HomePage() {
     };
   }, [mounted, authChecked, currentUser]);
 
-  // Simulate Incoming Message from Social Channels & Trigger AI Auto-Responder
+  //Simulate Incoming Message from Social Channels & Trigger AI Auto-Responder
+  // comentando para no usar simulados
   const handleSimulateIncomingMessage = async () => {
+    /*
     try {
       // Definicion de valores para el mensaje del cliente simulado
       const randomChannel: SocialChannel = ["whatsapp", "instagram", "twitter"][
@@ -956,6 +992,7 @@ export default function HomePage() {
     } catch (err) {
       console.error("Error in simulated bot response:", err);
     }
+    */
   };
 
   // Update Contact Stage
@@ -1776,28 +1813,27 @@ export default function HomePage() {
         isOpen={isGithubModalOpen}
         onClose={() => setIsGithubModalOpen(false)}
       />
-
-{/* WhatsApp Connect Modal */}
-{showWhatsappModal && (
-  <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-950/70 backdrop-blur-sm">
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setShowWhatsappModal(false)}
-        aria-label="Cerrar"
-        className="absolute right-4 top-4 z-10 flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-red-500 text-white shadow-xl ring-2 ring-white/20 transition-colors hover:bg-red-600"
-      >
-        <X className="h-6 w-6" strokeWidth={3} />
-      </button>
-      <WhatsAppConnectView
-        connectionStatus={whatsappStatus?.connectionStatus}
-        qrData={whatsappStatus?.qrData}
-        onRequestQr={handleRequestQr}
-        onDisconnect={handleDisconnectWhatsapp}
-      />
-    </div>
-  </div>
-)}
+      {/* WhatsApp Connect Modal */}
+      {showWhatsappModal && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-950/70 backdrop-blur-sm">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowWhatsappModal(false)}
+              aria-label="Cerrar"
+              className="absolute right-4 top-4 z-10 flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-red-500 text-white shadow-xl ring-2 ring-white/20 transition-colors hover:bg-red-600"
+            >
+              <X className="h-6 w-6" strokeWidth={3} />
+            </button>
+            <WhatsAppConnectView
+              connectionStatus={whatsappStatus?.connectionStatus}
+              qrData={whatsappStatus?.qrData}
+              onRequestQr={handleRequestQr}
+              onDisconnect={handleDisconnectWhatsapp}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
