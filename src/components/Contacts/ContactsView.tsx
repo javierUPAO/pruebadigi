@@ -560,6 +560,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
     e: React.DragEvent<HTMLDivElement>,
     contact: Contact,
   ) => {
+    setOpenSummaryContactId(null);
     // Evitar iniciar arrastre si el usuario interactúa con un select o botón
     const targetTag = (e.target as HTMLElement)?.tagName?.toLowerCase();
     if (
@@ -1012,6 +1013,66 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
     });
   };
 
+  // Guarda qué contacto tiene el popover abierto actualmente (null = todos cerrados)
+  const [openSummaryContactId, setOpenSummaryContactId] = useState<
+    string | null
+  >(null);
+  const [summaryAnchor, setSummaryAnchor] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
+  const [dbSummaryText, setDbSummaryText] = useState<string>("");
+  const [isFetchingSummary, setIsFetchingSummary] = useState<boolean>(false);
+
+  const handleToggleDbSummary = async (
+    e: React.MouseEvent<HTMLButtonElement>,
+    conversationId: string | undefined,
+    contactId: string,
+  ) => {
+    e.stopPropagation();
+
+    if (openSummaryContactId === contactId) {
+      setOpenSummaryContactId(null);
+      return;
+    }
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const popoverWidth = 320;
+    const safeLeft = Math.min(rect.left, window.innerWidth - popoverWidth - 16);
+
+    setSummaryAnchor({
+      top: rect.bottom + 6,
+      left: Math.max(8, safeLeft),
+    });
+    setOpenSummaryContactId(contactId);
+
+    if (!conversationId) {
+      setDbSummaryText(
+        "Aún no existe una conversación activa para este contacto.",
+      );
+      return;
+    }
+
+    setIsFetchingSummary(true);
+    setDbSummaryText("");
+
+    try {
+      const res = await fetch(
+        `/api/conversations/${encodeURIComponent(conversationId)}/summary`,
+      );
+      const json = await res.json();
+
+      if (res.ok && json.success && json.data?.summary) {
+        setDbSummaryText(json.data.summary);
+      } else {
+        setDbSummaryText("Sin resumen disponible todavía en la base de datos.");
+      }
+    } catch (error) {
+      setDbSummaryText("Error al consultar el resumen.");
+    } finally {
+      setIsFetchingSummary(false);
+    }
+  };
   return (
     <div className="flex-1 flex flex-col bg-slate-50 overflow-hidden font-sans">
       {/* Top Header / Stats */}
@@ -1240,33 +1301,29 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
                                 </span>
                               </div>
 
-                              {/* Resumen IA & Score Pill */}
+                              {/* Resumen BD (Dentro de la card solo va el botón) */}
                               <div className="flex items-center justify-between gap-1.5 pt-0.5 min-w-0">
                                 <button
-                                  onClick={() =>
-                                    handleSummarizeConversation(
-                                      conversations.find(
-                                        (c) => c.contactId === contact.id,
-                                      ),
-                                      contact,
-                                    )
-                                  }
-                                  disabled={isSummaryLoading || summaryWait > 0}
-                                  title={
-                                    summaryWait > 0
-                                      ? `Límite de solicitudes excedido. Reintenta en ${summaryWait}s.`
-                                      : undefined
-                                  }
-                                  className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-800 rounded-xl text-[11px] font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                                  type="button"
+                                  onMouseDown={(e) => e.stopPropagation()} // Evita activar el drag al hacer clic en el botón
+                                  onClick={(e) => {
+                                    const conv = conversations.find(
+                                      (c) => c.contactId === contact.id,
+                                    );
+                                    handleToggleDbSummary(
+                                      e,
+                                      conv?.id,
+                                      contact.id,
+                                    );
+                                  }}
+                                  className={`flex items-center gap-1.5 px-2.5 py-1 border rounded-xl text-[11px] font-bold transition-all cursor-pointer shrink-0 ${
+                                    openSummaryContactId === contact.id
+                                      ? "bg-slate-800 text-white border-slate-800 shadow-xs"
+                                      : "bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-800"
+                                  }`}
                                 >
                                   <FileText className="w-3 h-3 shrink-0" />
-                                  <span>
-                                    {summaryWait > 0
-                                      ? `Espera ${summaryWait}s`
-                                      : isSummaryLoading
-                                        ? "Analizando..."
-                                        : "Resumen IA"}
-                                  </span>
+                                  <span>Resumen IA</span>
                                 </button>
 
                                 <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 text-[10px] font-extrabold rounded-full border border-emerald-300 shadow-2xs flex items-center gap-1 shrink-0">
@@ -1881,6 +1938,53 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
           />
         </form>
       </Modal>
+      {/* Popover Global de Resumen IA (Fuera de las cards para no afectar el Drag & Drop ni el overflow-hidden) */}
+      {openSummaryContactId && summaryAnchor && (
+        <>
+          {/* Capa invisible para cerrar al hacer clic afuera o al usar la rueda del mouse en el tablero */}
+          <div
+            className="fixed inset-0 z-[90]"
+            onClick={() => setOpenSummaryContactId(null)}
+            onWheel={() => setOpenSummaryContactId(null)}
+          />
+
+          {/* Tarjeta flotante posicionada exactamente debajo del botón clickeado */}
+          <div
+            style={{
+              top: `${summaryAnchor.top}px`,
+              left: `${summaryAnchor.left}px`,
+            }}
+            className="fixed w-72 sm:w-80 bg-white border border-slate-200 rounded-2xl shadow-2xl p-3.5 z-[100] animate-in fade-in zoom-in-95 duration-150"
+          >
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+              <div className="flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider">
+                  Resumen de Conversación
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOpenSummaryContactId(null)}
+                className="text-slate-400 hover:text-slate-600 text-xs font-bold px-1.5 py-0.5 rounded-md hover:bg-slate-100 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="max-h-48 overflow-y-auto pr-1 text-xs text-slate-600 leading-relaxed whitespace-pre-wrap select-text">
+              {isFetchingSummary ? (
+                <div className="flex items-center gap-2 py-3 text-slate-400">
+                  <div className="w-3.5 h-3.5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+                  <span>Consultando resumen...</span>
+                </div>
+              ) : (
+                dbSummaryText
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
