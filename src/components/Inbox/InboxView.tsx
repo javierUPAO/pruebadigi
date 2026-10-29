@@ -195,6 +195,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
   const [mobileStage, setMobileStage] = useState<"list" | "chat" | "info">(
     "list",
   );
+  const [loadingConvId, setLoadingConvId] = useState<string | null>(null);
   const [inputText, setInputText] = useState<string>("");
   const [tagInput, setTagInput] = useState<string>("");
   const [isQuickRepliesModalOpen, setIsQuickRepliesModalOpen] =
@@ -499,6 +500,12 @@ export const InboxView: React.FC<InboxViewProps> = ({
         setInputText("");
       } else if (resData.success && resData.data?.simulated) {
         onSendMessage(activeConv.id, `🎙️ [Simulado: ${resData.data.message}]`);
+      } else {
+        alert(
+          resData.details ||
+            resData.error ||
+            "No se pudo generar la nota de voz.",
+        );
       }
     } catch (err) {
       console.error("Error generating voice note:", err);
@@ -847,8 +854,10 @@ export const InboxView: React.FC<InboxViewProps> = ({
                 <div
                   key={conv.id}
                   onClick={() => {
+                    setLoadingConvId(conv.id);
                     onSelectConversation(conv.id);
                     setMobileStage("chat");
+                    setTimeout(() => setLoadingConvId(null), 800);
                   }}
                   className={`p-3.5 flex items-start gap-3 cursor-pointer transition-all relative ${
                     isSelected
@@ -1007,48 +1016,6 @@ export const InboxView: React.FC<InboxViewProps> = ({
                   <Chrome className="w-3.5 h-3.5" />
                   <span className="hidden md:inline">Extensión XIO</span>
                 </button>
-
-                <button
-                  onClick={handleSummarizeConversation}
-                  disabled={isSummaryLoading || summaryWait > 0}
-                  title={
-                    summaryWait > 0
-                      ? `Límite de solicitudes excedido. Reintenta en ${summaryWait}s.`
-                      : undefined
-                  }
-                  className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-800 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  <span className="hidden md:inline">
-                    {summaryWait > 0
-                      ? `Espera ${summaryWait}s`
-                      : isSummaryLoading
-                        ? "Analizando..."
-                        : "Resumen IA"}
-                  </span>
-                </button>
-
-                <button
-                  onClick={handleGenerateAiSmartReplies}
-                  disabled={isAiLoading || suggestionsWait > 0}
-                  title={
-                    suggestionsWait > 0
-                      ? `Límite de solicitudes excedido. Reintenta en ${suggestionsWait}s.`
-                      : undefined
-                  }
-                  className="flex items-center gap-1.5 px-2.5 md:px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-extrabold shadow-sm shadow-emerald-700/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Sparkles
-                    className={`w-3.5 h-3.5 ${isAiLoading ? "animate-spin" : ""}`}
-                  />
-                  <span className="hidden sm:inline">
-                    {suggestionsWait > 0
-                      ? `Espera ${suggestionsWait}s`
-                      : isAiLoading
-                        ? "Generando..."
-                        : "Respuestas IA"}
-                  </span>
-                </button>
               </div>
             </div>
 
@@ -1153,7 +1120,12 @@ export const InboxView: React.FC<InboxViewProps> = ({
             )}
 
             {/* Message Thread */}
-            <div className="flex-1 p-5 overflow-y-auto space-y-3.5 bg-[#efeae2]/60 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px]">
+            <div className="relative flex-1 p-5 overflow-y-auto space-y-3.5 bg-[#efeae2]/60 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px]">
+              {loadingConvId && (
+                <div className="absolute inset-0 flex items-center justify-center bg-slate-900/40 z-20">
+                  <div className="w-8 h-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
               {activeMessages
                 .filter(
                   (msg) =>
