@@ -983,48 +983,6 @@ export const InboxView: React.FC<InboxViewProps> = ({
                   <Chrome className="w-3.5 h-3.5" />
                   <span className="hidden md:inline">Extensión XIO</span>
                 </button>
-
-                <button
-                  onClick={handleSummarizeConversation}
-                  disabled={isSummaryLoading || summaryWait > 0}
-                  title={
-                    summaryWait > 0
-                      ? `Límite de solicitudes excedido. Reintenta en ${summaryWait}s.`
-                      : undefined
-                  }
-                  className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-800 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  <span className="hidden md:inline">
-                    {summaryWait > 0
-                      ? `Espera ${summaryWait}s`
-                      : isSummaryLoading
-                        ? "Analizando..."
-                        : "Resumen IA"}
-                  </span>
-                </button>
-
-                <button
-                  onClick={handleGenerateAiSmartReplies}
-                  disabled={isAiLoading || suggestionsWait > 0}
-                  title={
-                    suggestionsWait > 0
-                      ? `Límite de solicitudes excedido. Reintenta en ${suggestionsWait}s.`
-                      : undefined
-                  }
-                  className="flex items-center gap-1.5 px-2.5 md:px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-extrabold shadow-sm shadow-emerald-700/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Sparkles
-                    className={`w-3.5 h-3.5 ${isAiLoading ? "animate-spin" : ""}`}
-                  />
-                  <span className="hidden sm:inline">
-                    {suggestionsWait > 0
-                      ? `Espera ${suggestionsWait}s`
-                      : isAiLoading
-                        ? "Generando..."
-                        : "Respuestas IA"}
-                  </span>
-                </button>
               </div>
             </div>
 
