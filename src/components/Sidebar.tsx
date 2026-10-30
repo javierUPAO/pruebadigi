@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  MessageSquare, LayoutDashboard, Target, Megaphone, Zap, TrendingUp, Plug, X,
+  MessageSquare, LayoutDashboard, Target, Megaphone, Zap, TrendingUp, X,
   Smartphone, Rocket, Shield, Building2, MessageCircle, Bot, Sparkles, Leaf, Package,
   Calendar, RefreshCw, Globe
 } from 'lucide-react';
@@ -60,6 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: TrendingUp,
       badge: null
     },
+    /*
     {
       id: 'api-github',
       label: 'API, Webhooks & MongoDB',
@@ -67,6 +68,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: <><Leaf className="w-2.5 h-2.5 inline mr-0.5" />DB</>,
       badgeColor: 'bg-teal-950/80 text-teal-300 font-bold border border-teal-700/60'
     }
+    */
   ];
 
   return (

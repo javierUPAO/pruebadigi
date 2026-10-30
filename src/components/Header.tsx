@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Bell, Search, Sparkles, Menu, X,
-  MessageCircle, LayoutGrid, Target, Megaphone, Zap, TrendingUp, Plug, Rocket, Puzzle,
+  MessageCircle, LayoutGrid, Target, Megaphone, Zap, TrendingUp, Rocket, Puzzle,
   LogOut,
   User,
   MessageSquare,
@@ -79,12 +79,6 @@ export const Header: React.FC<HeaderProps> = ({
           icon: TrendingUp,
           title: 'Métricas, Analítica & Rendimiento',
           subtitle: 'Cuadros de mando, conversiones y tiempos de respuesta'
-        };
-      case 'api-github':
-        return {
-          icon: Plug,
-          title: 'API REST, Webhooks & MongoDB',
-          subtitle: 'Playground interactivo y gestión de bases de datos'
         };
       default:
         return {
