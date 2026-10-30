@@ -92,6 +92,8 @@ export interface WhatsappStatus {
   hasActiveQR: boolean;
   qrData: QrData | null;
   connectionStatus: "connected" | "qr-ready" | "disconnected";
+  phoneNumber?: string | null;
+  pushName?: string | null;
 }
 
 export type MediaType = "image" | "audio" | "video" | "document" | "sticker";

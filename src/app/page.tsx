@@ -1721,6 +1721,8 @@ export default function HomePage() {
                 ? "active-session"
                 : "active-no-session"
           }
+          whatsappUserPhone={whatsappStatus?.phoneNumber} //TELEFONO
+          whatsappUserName={whatsappStatus?.pushName} // PERFIL
           onConnectWhatsapp={() => setShowWhatsappModal(true)}
           onSelectConversationByContactId={handleSelectConversationByContactId}
         />
