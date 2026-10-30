@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Bell, Search, Radio, Sparkles, Github, Menu, X,
-  MessageCircle, LayoutGrid, Target, Megaphone, Zap, TrendingUp, Plug, Rocket, Puzzle,
+  Bell, Search, Sparkles, Menu, X,
+  MessageCircle, LayoutGrid, Target, Megaphone, Zap, TrendingUp, Rocket, Puzzle,
   LogOut,
   User,
   MessageSquare,
@@ -17,8 +17,8 @@ type WhatsAppStatusType = 'active-session' | 'active-no-session' | 'inactive';
 interface HeaderProps {
   activeTab: string;
   onSelectTab: (tab: string) => void;
-  onSimulateIncomingMessage: () => void;
-  onOpenGithubModal: () => void;
+  onSimulateIncomingMessage?: () => void;
+  onOpenGithubModal?: () => void;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   onToggleSidebar: () => void;
@@ -79,12 +79,6 @@ export const Header: React.FC<HeaderProps> = ({
           icon: TrendingUp,
           title: 'Métricas, Analítica & Rendimiento',
           subtitle: 'Cuadros de mando, conversiones y tiempos de respuesta'
-        };
-      case 'api-github':
-        return {
-          icon: Plug,
-          title: 'API REST, Webhooks & MongoDB',
-          subtitle: 'Playground interactivo y gestión de bases de datos'
         };
       default:
         return {
@@ -207,32 +201,7 @@ export const Header: React.FC<HeaderProps> = ({
           <Search className="w-4 h-4" />
         </button>
 
-        {/* Incoming Message Simulator Button */}
-        <button
-          onClick={onSimulateIncomingMessage}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-900 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer group shrink-0"
-          title="Simular llegada de mensaje entrante a WhatsApp"
-          aria-label="Simular llegada de mensaje entrante a WhatsApp"
-        >
-          <Radio className="w-3.5 h-3.5 group-hover:scale-125 transition-transform" />
-          <span className="hidden sm:inline">Simular Mensaje</span>
-          <span className="hidden md:inline-flex items-center gap-1 text-[10px] bg-white/20 px-1.5 py-0.5 rounded-md text-white"><Sparkles className="w-2.5 h-2.5" /> IA</span>
-        </button>
-
-        {/* GitHub Export / Download Button.
-            El texto ahora aparece recien en lg (antes en md, al mismo tiempo
-            que "Simular Mensaje" + badge IA), para no competir por espacio
-            justo en el rango de anchos mas apretado (tablets, ~768-1023px). */}
-        <button
-          onClick={onOpenGithubModal}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200/80 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer hover:border-slate-300 shrink-0"
-          title="Exportar proyecto para GitHub"
-          aria-label="Exportar proyecto para GitHub"
-        >
-          <Github className="w-3.5 h-3.5" />
-          <span className="hidden lg:inline">GitHub Studio</span>
-        </button>
-                {/* Botón de conexión WhatsApp, solo visible en móvil (en desktop ya está el badge de arriba) */}
+        {/* Botón de conexión WhatsApp, solo visible en móvil (en desktop ya está el badge de arriba) */}
         <button
           type="button"
           onClick={onConnectWhatsapp}

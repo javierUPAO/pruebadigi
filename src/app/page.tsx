@@ -57,7 +57,6 @@ import { ContactsView } from "@/components/Contacts/ContactsView";
 import { SegmentsView } from "@/components/Segments/SegmentsView";
 import { CampaignsView } from "@/components/Campaigns/CampaignsView";
 import { AutomationView } from "@/components/Automation/AutomationView";
-import { ApiGithubView } from "@/components/ApiGithub/ApiGithubView";
 import { AnalyticsView } from "@/components/Analytics/AnalyticsView";
 import { GithubModal } from "@/components/GithubModal";
 import { LoginView } from "@/components/Login/LoginView";
@@ -563,7 +562,7 @@ export default function HomePage() {
             phone,
             type: "audio",
             media: mediaUrl,
-            mimetype: "audio/mpeg; codecs=opus",
+            mimetype: "audio/ogg; codecs=opus",
           });
         } else if (esVideo) {
           resultado = await sendMediaMessage({
@@ -1795,6 +1794,7 @@ export default function HomePage() {
             />
           )}
 
+          {/* Seccion API REST, Webhooks & MongoDB ocultada (para reactivarse mas adelante)
           {activeTab === "api-github" && (
             <ApiGithubView
               apiKeys={apiKeys}
@@ -1803,6 +1803,7 @@ export default function HomePage() {
               onOpenGithubModal={() => setIsGithubModalOpen(true)}
             />
           )}
+          */}
 
           {activeTab === "analytics" && <AnalyticsView data={analyticsData} />}
         </main>

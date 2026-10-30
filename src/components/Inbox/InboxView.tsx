@@ -53,6 +53,7 @@ import {
   Rocket,
   Briefcase,
   Trash2,
+  Maximize2,
 } from "lucide-react";
 import { FacebookIcon } from "../icons/FacebookIcon";
 import { QuickRepliesModal } from "./QuickRepliesModal";
@@ -194,10 +195,16 @@ export const InboxView: React.FC<InboxViewProps> = ({
   const [mobileStage, setMobileStage] = useState<"list" | "chat" | "info">(
     "list",
   );
+  const [loadingConvId, setLoadingConvId] = useState<string | null>(null);
   const [inputText, setInputText] = useState<string>("");
   const [tagInput, setTagInput] = useState<string>("");
   const [isQuickRepliesModalOpen, setIsQuickRepliesModalOpen] =
     useState<boolean>(false);
+  const [mediaPreview, setMediaPreview] = useState<{
+    src: string;
+    alt: string;
+    type: "image" | "video";
+  } | null>(null);
 
   const [isQuickRepliesExpanded, setIsQuickRepliesExpanded] =
     useState<boolean>(false);
@@ -245,6 +252,26 @@ export const InboxView: React.FC<InboxViewProps> = ({
     conversations[0];
   const activeMessages = activeConv ? messagesMap[activeConv.id] || [] : [];
   const contact = activeConv?.contact;
+
+  const openVideoPreview = (
+    src: string,
+    alt: string,
+    trigger: HTMLButtonElement,
+  ) => {
+    trigger.parentElement?.querySelector("video")?.pause();
+    setMediaPreview({ src, alt, type: "video" });
+  };
+
+  useEffect(() => {
+    if (!mediaPreview) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMediaPreview(null);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mediaPreview]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -473,6 +500,12 @@ export const InboxView: React.FC<InboxViewProps> = ({
         setInputText("");
       } else if (resData.success && resData.data?.simulated) {
         onSendMessage(activeConv.id, `🎙️ [Simulado: ${resData.data.message}]`);
+      } else {
+        alert(
+          resData.details ||
+            resData.error ||
+            "No se pudo generar la nota de voz.",
+        );
       }
     } catch (err) {
       console.error("Error generating voice note:", err);
@@ -821,8 +854,10 @@ export const InboxView: React.FC<InboxViewProps> = ({
                 <div
                   key={conv.id}
                   onClick={() => {
+                    setLoadingConvId(conv.id);
                     onSelectConversation(conv.id);
                     setMobileStage("chat");
+                    setTimeout(() => setLoadingConvId(null), 800);
                   }}
                   className={`p-3.5 flex items-start gap-3 cursor-pointer transition-all relative ${
                     isSelected
@@ -981,48 +1016,6 @@ export const InboxView: React.FC<InboxViewProps> = ({
                   <Chrome className="w-3.5 h-3.5" />
                   <span className="hidden md:inline">Extensión XIO</span>
                 </button>
-
-                <button
-                  onClick={handleSummarizeConversation}
-                  disabled={isSummaryLoading || summaryWait > 0}
-                  title={
-                    summaryWait > 0
-                      ? `Límite de solicitudes excedido. Reintenta en ${summaryWait}s.`
-                      : undefined
-                  }
-                  className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-800 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  <span className="hidden md:inline">
-                    {summaryWait > 0
-                      ? `Espera ${summaryWait}s`
-                      : isSummaryLoading
-                        ? "Analizando..."
-                        : "Resumen IA"}
-                  </span>
-                </button>
-
-                <button
-                  onClick={handleGenerateAiSmartReplies}
-                  disabled={isAiLoading || suggestionsWait > 0}
-                  title={
-                    suggestionsWait > 0
-                      ? `Límite de solicitudes excedido. Reintenta en ${suggestionsWait}s.`
-                      : undefined
-                  }
-                  className="flex items-center gap-1.5 px-2.5 md:px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-extrabold shadow-sm shadow-emerald-700/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Sparkles
-                    className={`w-3.5 h-3.5 ${isAiLoading ? "animate-spin" : ""}`}
-                  />
-                  <span className="hidden sm:inline">
-                    {suggestionsWait > 0
-                      ? `Espera ${suggestionsWait}s`
-                      : isAiLoading
-                        ? "Generando..."
-                        : "Respuestas IA"}
-                  </span>
-                </button>
               </div>
             </div>
 
@@ -1127,7 +1120,12 @@ export const InboxView: React.FC<InboxViewProps> = ({
             )}
 
             {/* Message Thread */}
-            <div className="flex-1 p-5 overflow-y-auto space-y-3.5 bg-[#efeae2]/60 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px]">
+            <div className="relative flex-1 p-5 overflow-y-auto space-y-3.5 bg-[#efeae2]/60 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px]">
+              {loadingConvId && (
+                <div className="absolute inset-0 flex items-center justify-center bg-slate-900/40 z-20">
+                  <div className="w-8 h-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
               {activeMessages
                 .filter(
                   (msg) =>
@@ -1177,26 +1175,47 @@ export const InboxView: React.FC<InboxViewProps> = ({
                             <>
                               {msg.mediaType === "image" && (
                                 <div className="mb-2 rounded-xl overflow-hidden border border-black/10 bg-black/5 shadow-2xs">
-                                  <img
-                                    src={`data:${msg.media.mimetype};base64,${msg.media.data}`}
-                                    alt={msg.media.filename || "Imagen"}
-                                    className="w-full max-h-60 object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                                  <button
+                                    type="button"
+                                    aria-label={`Ampliar ${msg.media.filename || "imagen"}`}
                                     onClick={() =>
-                                      window.open(
-                                        `data:${msg.media.mimetype};base64,${msg.media.data}`,
-                                        "_blank",
-                                      )
+                                      setMediaPreview({
+                                        src: `data:${msg.media.mimetype};base64,${msg.media.data}`,
+                                        alt: msg.media.filename || "Imagen",
+                                        type: "image",
+                                      })
                                     }
-                                  />
+                                    className="block w-full cursor-zoom-in"
+                                  >
+                                    <img
+                                      src={`data:${msg.media.mimetype};base64,${msg.media.data}`}
+                                      alt={msg.media.filename || "Imagen"}
+                                      className="w-full max-h-60 object-cover hover:opacity-95 transition-opacity"
+                                    />
+                                  </button>
                                 </div>
                               )}
                               {msg.mediaType === "video" && (
-                                <div className="mb-2 rounded-xl overflow-hidden border border-black/10 bg-black/5 shadow-2xs">
+                                <div className="relative mb-2 rounded-xl overflow-hidden border border-black/10 bg-black/5 shadow-2xs">
                                   <video
                                     src={`data:${msg.media.mimetype};base64,${msg.media.data}`}
                                     controls
-                                    className="w-full max-h-60 object-cover"
+                                    className="w-full max-h-60 object-contain"
                                   />
+                                  <button
+                                    type="button"
+                                    aria-label={`Ampliar ${msg.media.filename || "video"}`}
+                                    onClick={(event) =>
+                                      openVideoPreview(
+                                        `data:${msg.media.mimetype};base64,${msg.media.data}`,
+                                        msg.media.filename || "Video",
+                                        event.currentTarget,
+                                      )
+                                    }
+                                    className="absolute right-2 top-2 rounded-lg bg-black/65 p-2 text-white transition-colors hover:bg-black/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                                  >
+                                    <Maximize2 className="h-4 w-4" />
+                                  </button>
                                 </div>
                               )}
                               {msg.mediaType === "audio" && (
@@ -1244,16 +1263,50 @@ export const InboxView: React.FC<InboxViewProps> = ({
                               <div className="mb-2">
                                 <VoiceNotePlayer src={msg.mediaUrl} />
                               </div>
+                            ) : msg.mediaType === "video" ||
+                              msg.mediaUrl.startsWith("data:video/") ? (
+                              <div className="relative mb-2 rounded-xl overflow-hidden border border-black/10 bg-black/5 shadow-2xs">
+                                <video
+                                  src={msg.mediaUrl}
+                                  controls
+                                  className="w-full max-h-60 object-contain"
+                                />
+                                <button
+                                  type="button"
+                                  aria-label="Ampliar video adjunto"
+                                  onClick={(event) =>
+                                    openVideoPreview(
+                                      msg.mediaUrl,
+                                      "Video adjunto",
+                                      event.currentTarget,
+                                    )
+                                  }
+                                  className="absolute right-2 top-2 rounded-lg bg-black/65 p-2 text-white transition-colors hover:bg-black/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                                >
+                                  <Maximize2 className="h-4 w-4" />
+                                </button>
+                              </div>
                             ) : (
                               <div className="mb-2 rounded-xl overflow-hidden border border-black/10 bg-black/5 shadow-2xs">
-                                <img
-                                  src={msg.mediaUrl}
-                                  alt="Adjunto"
-                                  className="w-full max-h-60 object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                                <button
+                                  type="button"
+                                  aria-label="Ampliar imagen adjunta"
                                   onClick={() =>
-                                    window.open(msg.mediaUrl, "_blank")
+                                    msg.mediaUrl &&
+                                    setMediaPreview({
+                                      src: msg.mediaUrl,
+                                      alt: "Imagen adjunta",
+                                      type: "image",
+                                    })
                                   }
-                                />
+                                  className="block w-full cursor-zoom-in"
+                                >
+                                  <img
+                                    src={msg.mediaUrl}
+                                    alt="Adjunto"
+                                    className="w-full max-h-60 object-cover hover:opacity-95 transition-opacity"
+                                  />
+                                </button>
                               </div>
                             ))}
 
@@ -1784,6 +1837,48 @@ export const InboxView: React.FC<InboxViewProps> = ({
             }
           }}
         />
+      )}
+
+      {mediaPreview && (
+        <div
+          className="fixed inset-0 z-[100] flex flex-col bg-black/95 animate-fadeIn"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Vista previa de ${mediaPreview.type === "video" ? "video" : "imagen"}`}
+          onClick={() => setMediaPreview(null)}
+        >
+          <div className="flex h-14 shrink-0 items-center justify-between gap-4 px-4 text-white sm:px-6">
+            <p className="truncate text-sm font-medium">{mediaPreview.alt}</p>
+            <button
+              type="button"
+              onClick={() => setMediaPreview(null)}
+              aria-label="Cerrar vista previa"
+              className="rounded-full p-2 text-white/80 transition-colors hover:bg-white/15 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="flex min-h-0 flex-1 items-center justify-center p-4 sm:p-8">
+            {mediaPreview.type === "video" ? (
+              <video
+                src={mediaPreview.src}
+                controls
+                autoPlay
+                playsInline
+                aria-label={mediaPreview.alt}
+                onClick={(event) => event.stopPropagation()}
+                className="max-h-full max-w-full"
+              />
+            ) : (
+              <img
+                src={mediaPreview.src}
+                alt={mediaPreview.alt}
+                onClick={(event) => event.stopPropagation()}
+                className="max-h-full max-w-full select-none object-contain"
+              />
+            )}
+          </div>
+        </div>
       )}
 
       {/* Modal de Confirmación para Eliminar Mensaje del Cliente */}

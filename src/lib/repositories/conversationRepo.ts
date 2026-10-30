@@ -140,3 +140,16 @@ export async function bumpLastMessage(
     })
     .catch(() => null);
 }
+
+export async function getConversationSummaryById(
+  db: PrismaClient,
+  id: string,
+): Promise<{ summary: string | null } | null> {
+  const row = await db.conversation.findUnique({
+    where: { id },
+    select: { summary: true },
+  });
+
+  if (!row) return null; // La conversación no existe en la BD
+  return { summary: row.summary ?? null }; // Existe (summary puede ser texto o null)
+}
