@@ -8,6 +8,7 @@ import { io as createSocket, Socket } from "socket.io-client";
 import {
   WHATSAPP_SERVICE_URL,
   normalizePhone,
+  isIgnoredWhatsAppJid,
   isLid,
   getJidForSending,
   getWhatsappStatus,
@@ -616,6 +617,11 @@ export default function HomePage() {
     const messageId = String(raw.messageId || `m_inc_${Date.now()}`);
     if (processedIncomingIdsRef.current.has(messageId)) return;
     processedIncomingIdsRef.current.add(messageId);
+
+    // Ignorar mensajes de canales, comunidades, grupos o difusiones
+    if (isIgnoredWhatsAppJid(raw.from || "") || isIgnoredWhatsAppJid(raw.fromName || "")) {
+      return;
+    }
 
     const phone = normalizePhone(raw.from || raw.fromName || "");
     if (!phone) return;

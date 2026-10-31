@@ -7,7 +7,7 @@ import {
   upsertConversation,
   bumpLastMessage,
 } from "@/lib/repositories/conversationRepo";
-import { normalizePhone } from "@/lib/whatsappService";
+import { normalizePhone, isIgnoredWhatsAppJid } from "@/lib/whatsappService";
 import { DEMO_MODE, dbUnavailableResponse } from "@/lib/demo";
 import { captureException, logger, motivo } from "@/lib/logger";
 import type { Contact, Conversation } from "@/types";
@@ -124,6 +124,15 @@ export async function handleIncomingPayload(
 ): Promise<NextResponse> {
   try {
     const messageId = String(body.messageId || `m_inc_${Date.now()}`);
+
+    // Ignorar canales, comunidades, grupos o difusiones
+    if (isIgnoredWhatsAppJid(body.from || "") || isIgnoredWhatsAppJid(body.fromName || "")) {
+      return NextResponse.json(
+        { success: false, error: "Mensaje ignorado (canal/comunidad/grupo/difusion)" },
+        { status: 200 },
+      );
+    }
+
     const phone = normalizePhone(body.from || body.fromName || "");
     if (!phone) {
       return NextResponse.json(
