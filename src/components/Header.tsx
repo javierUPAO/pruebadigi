@@ -1,18 +1,29 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from "react";
 import {
-  Bell, Search, Sparkles, Menu, X,
-  MessageCircle, LayoutGrid, Target, Megaphone, Zap, TrendingUp, Rocket, Puzzle,
+  Bell,
+  Search,
+  Sparkles,
+  Menu,
+  X,
+  MessageCircle,
+  LayoutGrid,
+  Target,
+  Megaphone,
+  Zap,
+  TrendingUp,
+  Rocket,
+  Puzzle,
   LogOut,
   User,
   MessageSquare,
   Instagram,
   Twitter,
-  ChevronRight
-} from 'lucide-react';
-import { Conversation } from '@/types';
-import { AI_MODEL_NAME, XIO_EXTENSION_VERSION } from '@/lib/constants';
+  ChevronRight,
+} from "lucide-react";
+import { Conversation } from "@/types";
+import { AI_MODEL_NAME, XIO_EXTENSION_VERSION } from "@/lib/constants";
 
-type WhatsAppStatusType = 'active-session' | 'active-no-session' | 'inactive';
+type WhatsAppStatusType = "active-session" | "active-no-session" | "inactive";
 
 interface HeaderProps {
   activeTab: string;
@@ -22,15 +33,17 @@ interface HeaderProps {
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   onToggleSidebar: () => void;
-  onLogout: () => void
-  conversations: Conversation[],
+  onLogout: () => void;
+  conversations: Conversation[];
   whatsappStatus: WhatsAppStatusType;
+  whatsappUserPhone?: string; // RECIBE EL NUMERO DE WHASAP
+  whatsappUserName?: string; // RECIBE EL PERFIL DE WHASAP
   onConnectWhatsapp: () => void;
   onSelectConversationByContactId: (contactId: string) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
-   activeTab,
+  activeTab,
   onSimulateIncomingMessage,
   onOpenGithubModal,
   searchQuery,
@@ -39,52 +52,55 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout,
   conversations,
   whatsappStatus,
+  whatsappUserPhone, // DESESTRURAMOS EL TELENO
+  whatsappUserName, // <-- DESESTRURAMOS EL NOMBRE
   onConnectWhatsapp,
-  onSelectConversationByContactId
+  onSelectConversationByContactId,
 }) => {
   const getTabInfo = (tab: string) => {
     switch (tab) {
-      case 'inbox':
+      case "inbox":
         return {
           icon: MessageCircle,
-          title: 'Inbox Omnicanal - XIO',
-          subtitle: 'WhatsApp Web Multiagente, Instagram & Chat IA'
+          title: "Inbox Omnicanal - XIO",
+          subtitle: "WhatsApp Web Multiagente, Instagram & Chat IA",
         };
-      case 'contacts':
+      case "contacts":
         return {
           icon: LayoutGrid,
-          title: 'CRM Kanban de Ventas & Funnel',
-          subtitle: 'Pipeline interactivo y seguimiento de prospectos en tiempo real'
+          title: "CRM Kanban de Ventas & Funnel",
+          subtitle:
+            "Pipeline interactivo y seguimiento de prospectos en tiempo real",
         };
-      case 'segments':
+      case "segments":
         return {
           icon: Target,
-          title: 'Segmentos & Audiencias IA',
-          subtitle: 'Filtros avanzados por canal, score y etiquetas'
+          title: "Segmentos & Audiencias IA",
+          subtitle: "Filtros avanzados por canal, score y etiquetas",
         };
-      case 'campaigns':
+      case "campaigns":
         return {
           icon: Megaphone,
-          title: 'Difusión Masiva & Copywriter IA',
-          subtitle: 'Campañas de marketing automatizadas con Google Gemini'
+          title: "Difusión Masiva & Copywriter IA",
+          subtitle: "Campañas de marketing automatizadas con Google Gemini",
         };
-      case 'automation':
+      case "automation":
         return {
           icon: Zap,
-          title: 'Automatizaciones & Flujos',
-          subtitle: 'Disparadores inteligentes y auto-respondedores 24/7'
+          title: "Automatizaciones & Flujos",
+          subtitle: "Disparadores inteligentes y auto-respondedores 24/7",
         };
-      case 'analytics':
+      case "analytics":
         return {
           icon: TrendingUp,
-          title: 'Métricas, Analítica & Rendimiento',
-          subtitle: 'Cuadros de mando, conversiones y tiempos de respuesta'
+          title: "Métricas, Analítica & Rendimiento",
+          subtitle: "Cuadros de mando, conversiones y tiempos de respuesta",
         };
       default:
         return {
           icon: Rocket,
-          title: 'XIO',
-          subtitle: 'Plataforma Omnicanal de Ventas'
+          title: "XIO",
+          subtitle: "Plataforma Omnicanal de Ventas",
         };
     }
   };
@@ -95,21 +111,24 @@ export const Header: React.FC<HeaderProps> = ({
   // icono despliega una barra de busqueda a pantalla completa sobre el Header.
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [showUserOptions, setShowUserOptions] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false)
-  const notificationsRef = useRef<HTMLDivElement>(null)
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notificationsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!showNotifications) return;
     const handleClickOutside = (e: MouseEvent) => {
-      if (notificationsRef.current && !notificationsRef.current.contains(e.target as Node)) {
+      if (
+        notificationsRef.current &&
+        !notificationsRef.current.contains(e.target as Node)
+      ) {
         setShowNotifications(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showNotifications]);
-  const [loadItems, setLoadItems] = useState(2)
-  const unread = conversations.filter(c => c.unreadCount > 0)
+  const [loadItems, setLoadItems] = useState(2);
+  const unread = conversations.filter((c) => c.unreadCount > 0);
   const mobileSearchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -135,34 +154,36 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="truncate">{currentTab.title}</span>
           </h1>
           <div className="flex items-center gap-2.5 text-[11px] text  -slate-500 mt-0.5">
-                        <button
+            <button
               type="button"
               onClick={onConnectWhatsapp}
               className={`hidden sm:inline-flex items-center gap-1.5 font-bold px-2 py-0.5 rounded-full border transition-colors ${
-                whatsappStatus === 'active-session'
-                  ? 'text-emerald-600 bg-emerald-50 border-emerald-200/60'
-                  : whatsappStatus === 'active-no-session'
-                  ? 'text-amber-600 bg-amber-50 border-amber-200/60'
-                  : 'text-red-600 bg-red-50 border-red-200/60 hover:bg-red-100'
+                whatsappStatus === "active-session"
+                  ? "text-emerald-600 bg-emerald-50 border-emerald-200/60"
+                  : whatsappStatus === "active-no-session"
+                    ? "text-amber-600 bg-amber-50 border-amber-200/60"
+                    : "text-red-600 bg-red-50 border-red-200/60 hover:bg-red-100"
               }`}
-
             >
-              <span className={`w-2 h-2 rounded-full ${
-                whatsappStatus === 'active-session'
-                  ? 'bg-emerald-500'
-                  : whatsappStatus === 'active-no-session'
-                  ? 'bg-amber-500 animate-pulse'
-                  : 'bg-red-500'
-              }`}></span>
-              {whatsappStatus === 'active-session'
-                ? 'WhatsApp Activo: Con sesión'
-                : whatsappStatus === 'active-no-session'
-                ? 'WhatsApp Activo: Sin sesión'
-                : 'Servicio de WhatsApp inactivo'}
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  whatsappStatus === "active-session"
+                    ? "bg-emerald-500"
+                    : whatsappStatus === "active-no-session"
+                      ? "bg-amber-500 animate-pulse"
+                      : "bg-red-500"
+                }`}
+              ></span>
+              {whatsappStatus === "active-session"
+                ? `WhatsApp Activo: ${whatsappUserName ? `${whatsappUserName} (` : ""}+${whatsappUserPhone || "Conectado"}${whatsappUserName ? ")" : ""}`
+                : whatsappStatus === "active-no-session"
+                  ? "WhatsApp Activo: Sin sesión"
+                  : "Servicio de WhatsApp inactivo"}
             </button>
             <span className="text-slate-300 hidden sm:inline">•</span>
             <span className="hidden md:inline-flex items-center gap-1 font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
-              <Puzzle className="w-3 h-3" /> Extensión XIO v{XIO_EXTENSION_VERSION}
+              <Puzzle className="w-3 h-3" /> Extensión XIO v
+              {XIO_EXTENSION_VERSION}
             </span>
             <span className="text-slate-300 hidden lg:inline">•</span>
             <span className="hidden lg:inline-flex items-center gap-1 font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200/60">
@@ -181,7 +202,8 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="flex items-center gap-1 md:gap-3 min-w-0">
         {/* Search Bar (>= lg) */}
         <div className="relative hidden lg:block w-60 shrink-0">
-<Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />          <input
+          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />{" "}
+          <input
             type="text"
             placeholder="Buscar contacto, tag, teléfono..."
             value={searchQuery}
@@ -206,29 +228,33 @@ export const Header: React.FC<HeaderProps> = ({
           type="button"
           onClick={onConnectWhatsapp}
           aria-label={
-            whatsappStatus === 'active-session'
-              ? 'WhatsApp activo con sesión'
-              : whatsappStatus === 'active-no-session'
-              ? 'WhatsApp activo sin sesión'
-              : 'Conectar WhatsApp'
+            whatsappStatus === "active-session"
+              ? "WhatsApp activo con sesión"
+              : whatsappStatus === "active-no-session"
+                ? "WhatsApp activo sin sesión"
+                : "Conectar WhatsApp"
           }
           className={`sm:hidden flex items-center justify-center w-9 h-9 rounded-xl transition-colors cursor-pointer shrink-0 ${
-            whatsappStatus === 'active-session'
-              ? 'text-emerald-600 bg-emerald-50'
-              : whatsappStatus === 'active-no-session'
-              ? 'text-amber-600 bg-amber-50'
-              : 'text-red-600 bg-red-50 hover:bg-red-100'
+            whatsappStatus === "active-session"
+              ? "text-emerald-600 bg-emerald-50"
+              : whatsappStatus === "active-no-session"
+                ? "text-amber-600 bg-amber-50"
+                : "text-red-600 bg-red-50 hover:bg-red-100"
           }`}
         >
           <MessageSquare className="w-4 h-4" />
         </button>
 
         {/* Notifications */}
-        <div ref={notificationsRef} className='relative flex justify-center'>
-          <button aria-label="Ver notificaciones" onClick={() => {
-            setShowNotifications(!showNotifications)
-            setShowUserOptions(false)
-          }} className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors relative cursor-pointer shrink-0">
+        <div ref={notificationsRef} className="relative flex justify-center">
+          <button
+            aria-label="Ver notificaciones"
+            onClick={() => {
+              setShowNotifications(!showNotifications);
+              setShowUserOptions(false);
+            }}
+            className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors relative cursor-pointer shrink-0"
+          >
             <Bell className="w-4 h-4" />
             {unread.length > 0 && (
               <span className="w-2 h-2 bg-emerald-500 rounded-full absolute top-1.5 right-1.5 ring-2 ring-white"></span>
@@ -237,32 +263,42 @@ export const Header: React.FC<HeaderProps> = ({
 
           {showNotifications && (
             <div className="hidden md:flex md:flex-col absolute right-0 top-full mt-2 w-80 max-h-96 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl z-50">
-
               {unread.length === 0 ? (
                 <div className="p-8 text-center text-slate-400 text-xs">
                   <MessageSquare className="w-6 h-6 mx-auto mb-1" />
                   Bandeja de notificaciones vacia
                 </div>
               ) : (
-                unread.slice(0, loadItems).map(conv => {
+                unread.slice(0, loadItems).map((conv) => {
                   return (
                     <button
                       key={conv.id}
                       type="button"
                       onClick={() => {
-                        onSelectConversationByContactId(conv.contactId)
-                        setShowNotifications(false)
+                        onSelectConversationByContactId(conv.contactId);
+                        setShowNotifications(false);
                       }}
-                      className='w-full text-left bg-white p-2 border-b border-slate-100 text-slate-600 cursor-pointer hover:bg-slate-50/90 flex gap-2'
+                      className="w-full text-left bg-white p-2 border-b border-slate-100 text-slate-600 cursor-pointer hover:bg-slate-50/90 flex gap-2"
                     >
                       <div className="relative shrink-0">
                         <img
-                          src={conv.contact.avatar || "https://cdn-icons-png.flaticon.com/512/149/149071.png"}
+                          src={
+                            conv.contact.avatar ||
+                            "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+                          }
                           alt={conv.contact.name}
                           className="w-11 h-11 rounded-2xl object-cover border border-slate-200 shadow-2xs"
                         />
                         <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow-2xs border border-slate-100">
-                          {conv.channel === 'whatsapp' ? <MessageCircle className="w-2.5 h-2.5 text-emerald-600" /> : conv.channel === 'instagram' ? <Instagram className="w-2.5 h-2.5 text-pink-600" /> : conv.channel === 'twitter' ? <Twitter className="w-2.5 h-2.5 text-sky-600" /> : <MessageSquare className="w-2.5 h-2.5 text-blue-600" />}
+                          {conv.channel === "whatsapp" ? (
+                            <MessageCircle className="w-2.5 h-2.5 text-emerald-600" />
+                          ) : conv.channel === "instagram" ? (
+                            <Instagram className="w-2.5 h-2.5 text-pink-600" />
+                          ) : conv.channel === "twitter" ? (
+                            <Twitter className="w-2.5 h-2.5 text-sky-600" />
+                          ) : (
+                            <MessageSquare className="w-2.5 h-2.5 text-blue-600" />
+                          )}
                         </span>
                       </div>
 
@@ -287,19 +323,18 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  setLoadItems((prev) => prev + 2)
+                  setLoadItems((prev) => prev + 2);
                 }}
-                className={`${loadItems >= unread.length ? 'hidden' : 'flex'} cursor-pointer font-bold items-center justify-center gap-2 w-full p-3 text-slate-600 text-xs shrink-0 hover:bg-slate-50`}
+                className={`${loadItems >= unread.length ? "hidden" : "flex"} cursor-pointer font-bold items-center justify-center gap-2 w-full p-3 text-slate-600 text-xs shrink-0 hover:bg-slate-50`}
                 aria-label="Cargar más notificaciones"
               >
                 Cargar más mensajes <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           )}
-
         </div>
 
-        <div className='group relative flex justify-center items-center'>
+        <div className="group relative flex justify-center items-center">
           <button
             type="button"
             onClick={() => setShowUserOptions(!showUserOptions)}
@@ -312,18 +347,18 @@ export const Header: React.FC<HeaderProps> = ({
 
           <button
             onClick={onLogout}
-            aria-label="Cerrar sesión" className={`z-25
+            aria-label="Cerrar sesión"
+            className={`z-25
             absolute ml-1 p-2 bg-white border border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl  
               transition-colors cursor-pointer shrink-0 top-full mt-1 md:top-auto md:mt-0
-            ${showUserOptions ? 'block' : 'hidden'} 
+            ${showUserOptions ? "block" : "hidden"} 
             md:hidden md:group-hover:block
-            `}>
+            `}
+          >
             <LogOut className="w-4 h-4" />
           </button>
         </div>
-
       </div>
-
 
       {/* Expanded Search Bar (< lg) */}
       {showMobileSearch && (
@@ -336,7 +371,9 @@ export const Header: React.FC<HeaderProps> = ({
               placeholder="Buscar contacto, tag, teléfono..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Escape') setShowMobileSearch(false); }}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setShowMobileSearch(false);
+              }}
               className="w-full pl-9 pr-3 py-2 bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium"
             />
           </div>
@@ -356,8 +393,8 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={() => {
-              setLoadItems(2)
-              setShowNotifications(false)
+              setLoadItems(2);
+              setShowNotifications(false);
             }}
             className="mb-4 font-bold flex gap-2 items-center w-full p-4 text-slate-500 rounded-b-xl shrink-0 shadow-lg"
             aria-label="Cerrar búsqueda"
@@ -371,24 +408,35 @@ export const Header: React.FC<HeaderProps> = ({
               Bandeja de notificaciones vacia
             </div>
           ) : (
-            unread.slice(0, loadItems).map(conv => {
+            unread.slice(0, loadItems).map((conv) => {
               return (
                 <button
                   key={conv.id}
                   onClick={() => {
-                    onSelectConversationByContactId(conv.contactId)
-                    setShowNotifications(false)
+                    onSelectConversationByContactId(conv.contactId);
+                    setShowNotifications(false);
                   }}
-                  className='w-full text-left bg-white p-2 border border-slate-200 text-slate-600'
+                  className="w-full text-left bg-white p-2 border border-slate-200 text-slate-600"
                 >
                   <div className="relative shrink-0">
                     <img
-                      src={conv.contact.avatar || "https://cdn-icons-png.flaticon.com/512/149/149071.png"}
+                      src={
+                        conv.contact.avatar ||
+                        "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+                      }
                       alt={conv.contact.name}
                       className="w-11 h-11 rounded-2xl object-cover border border-slate-200 shadow-2xs"
                     />
                     <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow-2xs border border-slate-100">
-                      {conv.channel === 'whatsapp' ? <MessageCircle className="w-2.5 h-2.5 text-emerald-600" /> : conv.channel === 'instagram' ? <Instagram className="w-2.5 h-2.5 text-pink-600" /> : conv.channel === 'twitter' ? <Twitter className="w-2.5 h-2.5 text-sky-600" /> : <MessageSquare className="w-2.5 h-2.5 text-blue-600" />}
+                      {conv.channel === "whatsapp" ? (
+                        <MessageCircle className="w-2.5 h-2.5 text-emerald-600" />
+                      ) : conv.channel === "instagram" ? (
+                        <Instagram className="w-2.5 h-2.5 text-pink-600" />
+                      ) : conv.channel === "twitter" ? (
+                        <Twitter className="w-2.5 h-2.5 text-sky-600" />
+                      ) : (
+                        <MessageSquare className="w-2.5 h-2.5 text-blue-600" />
+                      )}
                     </span>
                   </div>
 
@@ -414,9 +462,9 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={() => {
-              setLoadItems((prev) => prev + 2)
+              setLoadItems((prev) => prev + 2);
             }}
-            className={`${loadItems >= unread.length ? 'hidden' : 'flex'} mt-4 font-bold gap-2 items-center w-full p-4 text-black rounded-t-xl shrink-0`}
+            className={`${loadItems >= unread.length ? "hidden" : "flex"} mt-4 font-bold gap-2 items-center w-full p-4 text-black rounded-t-xl shrink-0`}
             aria-label="Cerrar búsqueda"
           >
             Cargar más mensajes <ChevronRight className="w-4 h-4" />
