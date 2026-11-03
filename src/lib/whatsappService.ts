@@ -56,6 +56,18 @@ export function normalizePhone(input: string): string {
   return cleaned;
 }
 
+/** Verifica si un JID o identificador corresponde a un canal de difusion, grupo o broadcast no admitido */
+export function isIgnoredWhatsAppJid(input: string): boolean {
+  if (!input) return false;
+  const lower = input.toLowerCase();
+  return (
+    lower.includes("@newsletter") ||
+    lower.includes("@broadcast") ||
+    lower.includes("@g.us") ||
+    lower.includes("@call")
+  );
+}
+
 /** Verifica si un JID es un LID (Linked Identity) de WhatsApp */
 export function isLid(input: string): boolean {
   return (input || "").includes("@lid");

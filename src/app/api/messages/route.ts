@@ -106,8 +106,13 @@ export async function POST(req: NextRequest) {
     if (body.conversationId) {
       const pg = await connectToPostgres();
       if (pg) {
+        const fallbackLabel =
+          body.mediaType === "video" || body.mediaUrl?.startsWith("data:video/")
+            ? "[Video adjunto]"
+            : "[Imagen adjunta]";
+
         await bumpLastMessage(pg, body.conversationId, {
-          text: body.text || "[Imagen adjunta]",
+          text: body.text || fallbackLabel,
           sender: body.sender,
           timestamp: body.timestamp,
         });
