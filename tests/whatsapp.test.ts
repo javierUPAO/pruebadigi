@@ -106,3 +106,20 @@ describe('isWhatsAppConfigured', () => {
     expect(isWhatsAppConfigured()).toBe(true);
   });
 });
+
+describe('isIgnoredWhatsAppJid', () => {
+  it('detecta canales (@newsletter), difusiones (@broadcast) y grupos (@g.us)', async () => {
+    const { isIgnoredWhatsAppJid } = await import('@/lib/whatsappService');
+    expect(isIgnoredWhatsAppJid('120363413472860916@newsletter')).toBe(true);
+    expect(isIgnoredWhatsAppJid('status@broadcast')).toBe(true);
+    expect(isIgnoredWhatsAppJid('123456789-987654@g.us')).toBe(true);
+    expect(isIgnoredWhatsAppJid('call_event@call')).toBe(true);
+  });
+
+  it('permite usuarios individuales directos y LIDs', async () => {
+    const { isIgnoredWhatsAppJid } = await import('@/lib/whatsappService');
+    expect(isIgnoredWhatsAppJid('51987654321@s.whatsapp.net')).toBe(false);
+    expect(isIgnoredWhatsAppJid('159712670670898@lid')).toBe(false);
+    expect(isIgnoredWhatsAppJid('51987654321')).toBe(false);
+  });
+});
