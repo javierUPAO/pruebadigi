@@ -1165,17 +1165,23 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
             />
           </div>
 
-          <select
-            value={selectedChannel}
-            onChange={(e) => setSelectedChannel(e.target.value)}
-            className="w-full sm:w-auto px-3.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-extrabold focus:outline-none"
-          >
-            <option value="all">Todos los Canales</option>
-            <option value="whatsapp">WhatsApp</option>
-            <option value="instagram">Instagram</option>
-            <option value="twitter">X/Twitter</option>
-            <option value="messenger">Facebook</option>
-          </select>
+          <div className="relative w-full sm:w-auto">
+            <select
+              value={selectedChannel}
+              onChange={(e) => setSelectedChannel(e.target.value)}
+              className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 py-1.5 pl-3.5 pr-9 text-xs font-extrabold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 sm:min-w-44"
+            >
+              <option value="all">Todos los Canales</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="instagram">Instagram</option>
+              <option value="twitter">X/Twitter</option>
+              <option value="messenger">Facebook</option>
+            </select>
+            <ChevronDown
+              aria-hidden="true"
+              className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500"
+            />
+          </div>
         </div>
       </div>
 
@@ -1565,45 +1571,50 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
         ) : (
           /* TABLE VIEW */
           <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-            <table className="w-full text-left text-xs border-collapse">
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full min-w-[1060px] table-fixed text-left text-xs border-collapse">
+                <colgroup>
+                  <col style={{ width: "22%" }} />
+                  <col style={{ width: "13%" }} />
+                  <col style={{ width: "17%" }} />
+                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "12%" }} />
+                </colgroup>
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-black uppercase text-[10px] tracking-wider">
                 <tr>
-                  <th className="p-3.5">
+                  <th className="px-3 py-3">
                     <span className="flex items-center gap-1">
                       <User className="w-3 h-3" /> Cliente
                     </span>
                   </th>
-                  <th className="p-3.5">
+                  <th className="px-3 py-3">
                     <span className="flex items-center gap-1">
                       <Smartphone className="w-3 h-3" /> Canal
                     </span>
                   </th>
-                  <th className="p-3.5">
+                  <th className="px-3 py-3">
                     <span className="flex items-center gap-1">
                       <BarChart3 className="w-3 h-3" /> Etapa Embudo
                     </span>
                   </th>
-                  <th className="p-3.5">
+                  <th className="px-3 py-3">
                     <span className="flex items-center gap-1">
                       <RefreshCw className="w-3 h-3" /> Interacciones
                     </span>
                   </th>
-                  <th className="p-3.5">
+                  <th className="px-3 py-3">
                     <span className="flex items-center gap-1">
-                      <DollarSign className="w-3 h-3" /> Valor Deal
+                      <DollarSign className="w-3 h-3" /> Valor Ideal
                     </span>
                   </th>
-                  <th className="p-3.5">
-                    <span className="flex items-center gap-1">
-                      <Star className="w-3 h-3" /> Score IA
-                    </span>
-                  </th>
-                  <th className="p-3.5">
+                  <th className="px-3 py-3">
                     <span className="flex items-center gap-1">
                       <Tag className="w-3 h-3" /> Etiquetas
                     </span>
                   </th>
-                  <th className="p-3.5 text-right">
+                  <th className="px-3 py-3 text-right">
                     <span className="flex items-center justify-end gap-1">
                       <Settings className="w-3 h-3" /> Acción
                     </span>
@@ -1616,7 +1627,8 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
                     key={contact.id}
                     className="hover:bg-slate-50/90 transition-colors"
                   >
-                    <td className="p-3.5 font-medium flex items-center gap-3">
+                    <td className="px-3 py-3 font-medium">
+                      <div className="flex min-w-0 items-center gap-3">
                       <ContactAvatar
                         name={contact.name}
                         src={
@@ -1625,19 +1637,20 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
                         }
                         size={36}
                       />
-                      <div>
-                        <div className="font-bold text-slate-900">
+                      <div className="min-w-0">
+                        <div className="truncate font-bold text-slate-900">
                           {contact.name}
                         </div>
-                        <div className="text-[10px] text-slate-400 font-mono">
+                        <div className="truncate text-[10px] text-slate-400 font-mono">
                           {contact.email || contact.phone}
                         </div>
                       </div>
+                      </div>
                     </td>
-                    <td className="p-3.5 capitalize font-bold">
+                    <td className="px-3 py-3 capitalize font-bold">
                       {getChannelBadge(contact.channel)}
                     </td>
-                    <td className="p-3.5">
+                    <td className="px-3 py-3">
                       <span className="px-2.5 py-1 bg-slate-100 text-slate-800 text-[11px] font-bold rounded-xl border border-slate-200 flex items-center gap-1 w-fit">
                         {contact.stage === "lead" ? (
                           <>
@@ -1662,7 +1675,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
                         )}
                       </span>
                     </td>
-                    <td className="p-3.5">
+                    <td className="px-3 py-3">
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
@@ -1709,44 +1722,40 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
                         />
                       </div>
                     </td>
-                    <td className="p-3.5 font-bold text-slate-900">
-                      <span className="flex items-center gap-1">
+                    <td className="px-3 py-3 font-bold text-slate-900">
+                      <span className="flex items-center gap-1 whitespace-nowrap">
                         <DollarSign className="w-3 h-3" /> $
                         {contact.dealValue.toLocaleString()} USD
                       </span>
                     </td>
-                    <td className="p-3.5">
-                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 text-[10px] font-extrabold rounded-full border border-emerald-200 flex items-center gap-1 w-fit">
-                        <Star className="w-2.5 h-2.5" /> {contact.leadScore}%
-                      </span>
-                    </td>
-                    <td className="p-3.5">
-                      <div className="flex items-center gap-1">
+                    <td className="px-3 py-3">
+                      <div className="flex flex-wrap items-center gap-1">
                         {contact.tags.map((t) => (
                           <span
                             key={t}
-                            className="px-2 py-0.5 bg-slate-100 text-slate-700 text-[10px] rounded-md font-bold flex items-center gap-1"
+                            className="flex min-w-0 max-w-full items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700"
                           >
-                            <Tag className="w-2.5 h-2.5" /> {t}
+                            <Tag className="w-2.5 h-2.5 shrink-0" />
+                            <span className="min-w-0 truncate">{t}</span>
                           </span>
                         ))}
                       </div>
                     </td>
-                    <td className="p-3.5 text-right">
+                    <td className="whitespace-nowrap px-3 py-3 text-right">
                       <button
                         onClick={() =>
                           onSelectConversationByContactId(contact.id)
                         }
-                        className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-extrabold rounded-xl border border-emerald-200 text-xs transition-colors cursor-pointer inline-flex items-center gap-1"
+                        className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-extrabold rounded-xl border border-emerald-200 text-[11px] transition-colors cursor-pointer inline-flex items-center gap-1 whitespace-nowrap"
                       >
-                        <MessageCircle className="w-3 h-3" /> Abrir Chat
+                        <MessageCircle className="w-3 h-3" /> Chat
                       </button>
                       <button
                         type="button"
                         onClick={() => setContactToDelete(contact)}
                         title="Eliminar contacto"
                         aria-label="Eliminar contacto"
-                        className="ml-2 p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors align-middle"
+                        className="ml-1 p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors align-middle"
                       >
                         <Trash2 size={15} />
                       </button>
@@ -1754,7 +1763,172 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
+
+            <div className="lg:hidden space-y-3 bg-slate-50/50 p-3">
+              {pagedContacts.map((contact) => (
+                <article
+                  key={contact.id}
+                  className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <ContactAvatar
+                      name={contact.name}
+                      src={
+                        contact.avatar ||
+                        "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+                      }
+                      size={40}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="mb-0.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        Cliente
+                      </p>
+                      <h3 className="truncate text-sm font-extrabold text-slate-900">
+                        {contact.name}
+                      </h3>
+                      <p className="truncate text-[11px] font-mono text-slate-500">
+                        {contact.email || contact.phone || contact.handle}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="min-w-0">
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Canal
+                      </p>
+                      {getChannelBadge(contact.channel)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Etapa Embudo
+                      </p>
+                      <span className="inline-flex max-w-full items-center gap-1 rounded-xl border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-800">
+                        {contact.stage === "lead" ? (
+                          <>
+                            <Sprout className="h-3 w-3 shrink-0" /> Prospecto
+                          </>
+                        ) : contact.stage === "qualified" ? (
+                          <>
+                            <Target className="h-3 w-3 shrink-0" /> Cualificado
+                          </>
+                        ) : contact.stage === "negotiation" ? (
+                          <>
+                            <Briefcase className="h-3 w-3 shrink-0" /> Negociación
+                          </>
+                        ) : contact.stage === "closed_won" ? (
+                          <>
+                            <PartyPopper className="h-3 w-3 shrink-0" /> Ganada
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="h-3 w-3 shrink-0" /> Perdida
+                          </>
+                        )}
+                      </span>
+                    </div>
+
+                    <div className="col-span-2">
+                      <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Interacciones
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {INTERACTIONS.map((interaction) => {
+                          const active = Boolean(
+                            contact.interactions?.[interaction.key],
+                          );
+
+                          return (
+                            <button
+                              key={interaction.key}
+                              type="button"
+                              onClick={() =>
+                                onToggleInteraction?.(
+                                  contact.id,
+                                  interaction.key,
+                                )
+                              }
+                              title={interaction.aria}
+                              aria-label={`${interaction.aria} (${active ? "completada" : "pendiente"})`}
+                              aria-pressed={active}
+                              className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-2 py-1 text-[10px] font-bold transition-colors ${
+                                active
+                                  ? interaction.onClass
+                                  : "border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100"
+                              }`}
+                            >
+                              <span
+                                className={`h-2 w-2 shrink-0 rounded-full ${active ? interaction.dot : "bg-slate-300"}`}
+                              />
+                              {interaction.caption}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Valor Ideal
+                      </p>
+                      <p className="inline-flex items-center gap-1 text-sm font-extrabold text-slate-900">
+                        <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
+                        {contact.dealValue.toLocaleString()} USD
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Etiquetas
+                    </p>
+                    {contact.tags.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {contact.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-flex max-w-full items-center gap-1 rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700"
+                          >
+                            <Tag className="h-2.5 w-2.5 shrink-0" />
+                            <span className="break-all">{tag}</span>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-400">Sin etiquetas</p>
+                    )}
+                  </div>
+
+                  <div className="border-t border-slate-100 pt-3">
+                    <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Acción
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onSelectConversationByContactId(contact.id)
+                        }
+                        className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-extrabold text-emerald-800 transition-colors hover:bg-emerald-100"
+                      >
+                        <MessageCircle className="h-3.5 w-3.5" /> Abrir Chat
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setContactToDelete(contact)}
+                        title="Eliminar contacto"
+                        aria-label={`Eliminar a ${contact.name}`}
+                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-400 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
 
             <Pagination
               page={safeTablePage}
