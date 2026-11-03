@@ -211,6 +211,45 @@ export const InboxView: React.FC<InboxViewProps> = ({
   const [attachedImageUrl, setAttachedImageUrl] = useState<string>("");
   const [showAttachInput, setShowAttachInput] = useState<boolean>(false);
 
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+
+  const attachImageFile = (file: File) => {
+    if (!file.type.startsWith("image/")) return;
+    if (file.size > 16 * 1024 * 1024) {
+      alert("La imagen supera los 16 MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      if (ev.target?.result) {
+        setAttachedImageUrl(ev.target.result as string);
+        setShowAttachInput(true); // muestra la miniatura y el botón de cancelar
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!e.dataTransfer.types.includes("Files")) return;
+    e.preventDefault(); // sin esto el navegador no permite soltar
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = Array.from(e.dataTransfer.files).find((f) =>
+      f.type.startsWith("image/"),
+    );
+    if (file) attachImageFile(file);
+  };
+
   const [showExtensionPanel, setShowExtensionPanel] = useState<boolean>(true);
   const [openPanelSections, setOpenPanelSections] = useState<
     Record<string, boolean>
@@ -932,8 +971,18 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
       {/* COLUMN 2: Central WhatsApp Style Chat Canvas */}
       <div
-        className={`${mobileStage === "chat" ? "flex" : "hidden"} lg:flex flex-1 flex-col bg-white min-w-0 border-r border-slate-200 shadow-xs`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`${mobileStage === "chat" ? "flex" : "hidden"} lg:flex relative flex-1 flex-col bg-white min-w-0 border-r border-slate-200 shadow-xs`}
       >
+        {isDragging && (
+          <div className="absolute inset-0 z-40 flex items-center justify-center bg-emerald-50/90 border-2 border-dashed border-emerald-500 pointer-events-none">
+            <p className="text-sm font-extrabold text-emerald-700">
+              Suelta la imagen para adjuntarla
+            </p>
+          </div>
+        )}
         {activeConv && contact ? (
           <>
             {/* Active Chat Header */}
@@ -1521,6 +1570,15 @@ export const InboxView: React.FC<InboxViewProps> = ({
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
                       handleSend();
+                    }
+                  }}
+                  onPaste={(e) => {
+                    const file = Array.from(e.clipboardData.files).find((f) =>
+                      f.type.startsWith("image/"),
+                    );
+                    if (file) {
+                      e.preventDefault();
+                      attachImageFile(file);
                     }
                   }}
                   placeholder={`Escribe un mensaje (${channelDisplayName}) para ${contact.name}...`}
