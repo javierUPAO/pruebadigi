@@ -72,7 +72,7 @@ interface InboxViewProps {
     text: string,
     aiGenerated?: boolean,
     mediaUrl?: string,
-  ) => void;
+  ) => Promise<void> | void;
   onUpdateContactStage: (contactId: string, newStage: PipelineStage) => void;
   onUpdateContactTags: (contactId: string, newTags: string[]) => void;
   onUpdateContactNotes: (contactId: string, newNotes: string) => void;
@@ -174,6 +174,12 @@ function useRetryCountdown(): [number, (seconds: number) => void] {
   return [secondsLeft, start];
 }
 
+// Límites de peso configurables (en MB)
+const MAX_IMAGE_SIZE_MB =
+  Number(process.env.NEXT_PUBLIC_MAX_IMAGE_SIZE_MB) || 16;
+const MAX_VIDEO_SIZE_MB =
+  Number(process.env.NEXT_PUBLIC_MAX_VIDEO_SIZE_MB) || 16;
+
 export const InboxView: React.FC<InboxViewProps> = ({
   conversations,
   activeConversationId,
@@ -208,8 +214,110 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
   const [isQuickRepliesExpanded, setIsQuickRepliesExpanded] =
     useState<boolean>(false);
+
+  // Estados para adjuntar Foto o Video con vista previa estilo WhatsApp Web
+  const [attachedMedia, setAttachedMedia] = useState<{
+    dataUrl: string;
+    type: "image" | "video";
+    name: string;
+    sizeMB: string;
+  } | null>(null);
+
+  const [showAttachMenu, setShowAttachMenu] = useState<boolean>(false);
+
+  const [isReadingFile, setIsReadingFile] = useState<boolean>(false);
+  const [isSendingMedia, setIsSendingMedia] = useState<boolean>(false);
+  const [mediaUploadError, setMediaUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [attachedImageUrl, setAttachedImageUrl] = useState<string>("");
   const [showAttachInput, setShowAttachInput] = useState<boolean>(false);
+
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+
+  // Auto-ocultar errores de peso/formato después de 5 segundos
+  useEffect(() => {
+    if (!mediaUploadError) return;
+    const timer = setTimeout(() => setMediaUploadError(null), 5000);
+    return () => clearTimeout(timer);
+  }, [mediaUploadError]);
+
+  // Limpiar vista previa si cambia de conversación
+  useEffect(() => {
+    setAttachedMedia(null);
+    setShowAttachMenu(false);
+    setMediaUploadError(null);
+  }, [activeConversationId]);
+
+  const attachMediaFile = (file: File) => {
+    setMediaUploadError(null);
+    setShowAttachMenu(false);
+
+    const isImage = file.type.startsWith("image/");
+    const isVideo = file.type.startsWith("video/");
+
+    if (!isImage && !isVideo) {
+      setMediaUploadError(
+        "Formato no permitido. Solo puedes subir imágenes o videos.",
+      );
+      return;
+    }
+
+    const maxMB = isVideo ? MAX_VIDEO_SIZE_MB : MAX_IMAGE_SIZE_MB;
+    const fileSizeMB = file.size / (1024 * 1024);
+
+    if (fileSizeMB > maxMB) {
+      setMediaUploadError(
+        `El ${isVideo ? "video" : "archivo de imagen"} (${fileSizeMB.toFixed(1)} MB) supera el límite máximo permitido de ${maxMB} MB.`,
+      );
+      return;
+    }
+
+    setIsReadingFile(true);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setIsReadingFile(false);
+      if (ev.target?.result) {
+        setAttachedMedia({
+          dataUrl: ev.target.result as string,
+          type: isVideo ? "video" : "image",
+          name: file.name,
+          sizeMB: `${fileSizeMB.toFixed(2)} MB`,
+        });
+      }
+    };
+    reader.onerror = () => {
+      setIsReadingFile(false);
+      setMediaUploadError(
+        "Ocurrió un error al leer el archivo desde tu dispositivo.",
+      );
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!e.dataTransfer.types.includes("Files")) return;
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
+    const mediaFile =
+      files.find(
+        (f) => f.type.startsWith("image/") || f.type.startsWith("video/"),
+      ) || files[0];
+    if (mediaFile) attachMediaFile(mediaFile);
+  };
 
   const [showExtensionPanel, setShowExtensionPanel] = useState<boolean>(true);
   const [openPanelSections, setOpenPanelSections] = useState<
@@ -221,6 +329,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
     details: true,
     notes: true,
   });
+
   const togglePanelSection = (key: string) => {
     setOpenPanelSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
@@ -392,24 +501,39 @@ export const InboxView: React.FC<InboxViewProps> = ({
   );
 
   const handleSend = () => {
-    if ((!inputText.trim() && !attachedImageUrl) || !activeConv) return;
-    // Limpiar override si existía para que se vea el mensaje enviado en tiempo real
+    if (!inputText.trim() || !activeConv) return;
     setLastMessageOverrides((prev) => {
       if (!prev[activeConv.id]) return prev;
       const next = { ...prev };
       delete next[activeConv.id];
       return next;
     });
-    onSendMessage(
-      activeConv.id,
-      inputText.trim(),
-      false,
-      attachedImageUrl || undefined,
-    );
+    onSendMessage(activeConv.id, inputText.trim(), false, undefined);
     setInputText("");
-    setAttachedImageUrl("");
-    setShowAttachInput(false);
     setAiSuggestions(null);
+  };
+
+  const handleSendAttachedMedia = async () => {
+    if (!attachedMedia || !activeConv || isSendingMedia) return;
+    setIsSendingMedia(true);
+    setMediaUploadError(null);
+
+    setLastMessageOverrides((prev) => {
+      if (!prev[activeConv.id]) return prev;
+      const next = { ...prev };
+      delete next[activeConv.id];
+      return next;
+    });
+
+    try {
+      await onSendMessage(activeConv.id, "", false, attachedMedia.dataUrl);
+      setAttachedMedia(null);
+      setShowAttachMenu(false);
+    } catch {
+      setMediaUploadError("No se pudo enviar el archivo. Inténtalo de nuevo.");
+    } finally {
+      setIsSendingMedia(false);
+    }
   };
 
   const handleConfirmDeleteMessage = async () => {
@@ -932,8 +1056,23 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
       {/* COLUMN 2: Central WhatsApp Style Chat Canvas */}
       <div
-        className={`${mobileStage === "chat" ? "flex" : "hidden"} lg:flex flex-1 flex-col bg-white min-w-0 border-r border-slate-200 shadow-xs`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`${mobileStage === "chat" ? "flex" : "hidden"} lg:flex relative flex-1 flex-col bg-white min-w-0 border-r border-slate-200 shadow-xs`}
       >
+        {isDragging && (
+          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-emerald-50/95 border-2 border-dashed border-emerald-500 pointer-events-none">
+            <Paperclip className="w-10 h-10 text-emerald-600 mb-2 animate-bounce" />
+            <p className="text-sm font-extrabold text-emerald-800">
+              Suelta la foto o el video aquí para previsualizarlo
+            </p>
+            <p className="text-xs text-emerald-600 mt-1 font-medium">
+              Imágenes hasta {MAX_IMAGE_SIZE_MB} MB • Videos hasta{" "}
+              {MAX_VIDEO_SIZE_MB} MB
+            </p>
+          </div>
+        )}
         {activeConv && contact ? (
           <>
             {/* Active Chat Header */}
@@ -1018,6 +1157,115 @@ export const InboxView: React.FC<InboxViewProps> = ({
                 </button>
               </div>
             </div>
+
+            {/* Banner de Error de Peso o Formato de Archivo */}
+            {mediaUploadError && (
+              <div className="px-4 py-2.5 bg-rose-50 border-b border-rose-200 text-xs font-extrabold text-rose-800 flex items-center justify-between gap-2 animate-fadeIn">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{mediaUploadError}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMediaUploadError(null)}
+                  className="text-rose-500 hover:text-rose-800 p-1 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Estado de lectura del archivo desde PC / Drag / Paste */}
+            {isReadingFile && (
+              <div className="px-4 py-2.5 bg-emerald-50 border-b border-emerald-200 text-xs font-extrabold text-emerald-800 flex items-center gap-2.5">
+                <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin shrink-0" />
+                <span>Procesando archivo para vista previa...</span>
+              </div>
+            )}
+
+            {/* VISTA PREVIA ESTILO WHATSAPP WEB (Cubre el hilo de mensajes cuando hay foto/video seleccionado) */}
+            {attachedMedia && (
+              <div className="absolute inset-x-0 bottom-0 top-[61px] z-30 flex flex-col bg-[#e9edef] animate-fadeIn">
+                {/* Barra superior: Botón Cerrar/Cancelar + Info del archivo */}
+                <div className="h-14 px-4 bg-[#f0f2f5] border-b border-slate-200 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <button
+                      type="button"
+                      disabled={isSendingMedia}
+                      onClick={() => setAttachedMedia(null)}
+                      title="Cancelar envío"
+                      aria-label="Cancelar envío"
+                      className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-200/70 rounded-full transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                    <div className="min-w-0">
+                      <p className="text-xs font-extrabold text-slate-800 truncate">
+                        {attachedMedia.name}
+                      </p>
+                      <p className="text-[10px] font-semibold text-slate-500">
+                        {attachedMedia.type === "video" ? "Video" : "Imagen"} •{" "}
+                        {attachedMedia.sizeMB}
+                      </p>
+                    </div>
+                  </div>
+
+                  {isSendingMedia && (
+                    <div className="flex items-center gap-2 px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-extrabold">
+                      <div className="w-3.5 h-3.5 border-2 border-emerald-700 border-t-transparent rounded-full animate-spin" />
+                      <span>
+                        Subiendo y enviando{" "}
+                        {attachedMedia.type === "video" ? "video" : "imagen"}...
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Lienzo central de previsualización */}
+                <div className="flex-1 flex items-center justify-center p-6 overflow-hidden">
+                  {attachedMedia.type === "video" ? (
+                    <video
+                      src={attachedMedia.dataUrl}
+                      controls
+                      className="max-h-full max-w-full rounded-xl shadow-lg bg-black object-contain"
+                    />
+                  ) : (
+                    <img
+                      src={attachedMedia.dataUrl}
+                      alt={attachedMedia.name}
+                      className="max-h-full max-w-full rounded-xl shadow-lg object-contain select-none"
+                    />
+                  )}
+                </div>
+
+                {/* Barra inferior estilo WhatsApp Web con botón de cancelar y botón flotante de Enviar */}
+                <div className="h-20 px-6 bg-[#f0f2f5] border-t border-slate-200 flex items-center justify-between shrink-0">
+                  <button
+                    type="button"
+                    disabled={isSendingMedia}
+                    onClick={() => setAttachedMedia(null)}
+                    className="px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isSendingMedia}
+                    onClick={handleSendAttachedMedia}
+                    aria-label="Enviar archivo"
+                    title="Enviar archivo"
+                    className="w-12 h-12 rounded-full bg-[#00a884] hover:bg-[#008f6f] text-white flex items-center justify-center shadow-lg transition-all cursor-pointer active:scale-95 disabled:opacity-60"
+                  >
+                    {isSendingMedia ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Send className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {(summaryWait > 0 || suggestionsWait > 0) && (
               <div className="px-4 py-2 bg-red-50 border-b border-red-200 text-xs font-bold text-red-800 space-y-0.5">
@@ -1443,70 +1691,61 @@ export const InboxView: React.FC<InboxViewProps> = ({
                 )}
               </div>
 
-              {/* Input de Imagen Adjunta (cuando está activo) */}
-              {showAttachInput && (
-                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center gap-2 shadow-2xs">
-                  <ImageIcon className="w-4 h-4 shrink-0 text-slate-500" />
-                  <input
-                    type="url"
-                    value={attachedImageUrl}
-                    onChange={(e) => setAttachedImageUrl(e.target.value)}
-                    placeholder="Pega la URL de una imagen (ej: https://...)"
-                    className="flex-1 bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs outline-none focus:ring-2 focus:ring-emerald-500/20"
-                  />
-                  <label
-                    title="Subir imagen desde tu PC"
-                    className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-xl text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors shrink-0"
-                  >
-                    <FolderOpen className="w-3.5 h-3.5" />
-                    <span>Subir de PC</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        const reader = new FileReader();
-                        reader.onload = (ev) => {
-                          if (ev.target?.result) {
-                            setAttachedImageUrl(ev.target.result as string);
-                          }
-                        };
-                        reader.readAsDataURL(file);
-                      }}
-                    />
-                  </label>
-                  {attachedImageUrl && (
-                    <img
-                      src={attachedImageUrl}
-                      alt="Preview"
-                      className="w-8 h-8 rounded-lg object-cover border border-slate-200 shadow-2xs shrink-0"
-                    />
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowAttachInput(false);
-                      setAttachedImageUrl("");
-                    }}
-                    aria-label="Cancelar adjunto de imagen"
-                    className="text-slate-400 hover:text-slate-600 px-1 cursor-pointer"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
-
               {/* Caja de Texto Principal (Composer) */}
-              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl p-2 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all shadow-inner">
+              <div className="relative flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl p-2 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all shadow-inner">
+                {/* Input de archivo oculto para foto y video */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) attachMediaFile(file);
+                    e.target.value = "";
+                  }}
+                />
+
+                {/* Popover limpio al dar clic en el Clip: Solo "Subir desde PC" */}
+                {showAttachMenu && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-20"
+                      onClick={() => setShowAttachMenu(false)}
+                    />
+                    <div className="absolute bottom-full left-0 mb-2 z-30 bg-white border border-slate-200 rounded-2xl shadow-xl p-1.5 min-w-[210px] animate-fadeIn">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowAttachMenu(false);
+                          fileInputRef.current?.click();
+                        }}
+                        className="w-full px-3 py-2.5 hover:bg-emerald-50 text-slate-800 hover:text-emerald-900 rounded-xl text-xs font-extrabold flex items-center gap-2.5 transition-colors cursor-pointer"
+                      >
+                        <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                          <FolderOpen className="w-4 h-4" />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-xs font-extrabold leading-tight">
+                            Subir desde PC
+                          </p>
+                          <p className="text-[10px] text-slate-500 font-medium">
+                            Fotos ({MAX_IMAGE_SIZE_MB}MB) o Videos (
+                            {MAX_VIDEO_SIZE_MB}MB)
+                          </p>
+                        </div>
+                      </button>
+                    </div>
+                  </>
+                )}
+
                 <button
                   type="button"
-                  onClick={() => setShowAttachInput(!showAttachInput)}
-                  title="Adjuntar imagen por URL o archivo"
-                  aria-label="Adjuntar imagen por URL o archivo"
+                  onClick={() => setShowAttachMenu((prev) => !prev)}
+                  title="Adjuntar foto o video"
+                  aria-label="Adjuntar foto o video"
                   className={`p-2 rounded-xl transition-colors cursor-pointer shrink-0 ${
-                    attachedImageUrl || showAttachInput
+                    showAttachMenu || attachedMedia
                       ? "bg-emerald-100 text-emerald-700"
                       : "text-slate-400 hover:text-slate-600 hover:bg-slate-200/60"
                   }`}
@@ -1521,6 +1760,20 @@ export const InboxView: React.FC<InboxViewProps> = ({
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
                       handleSend();
+                    }
+                  }}
+                  onPaste={(e) => {
+                    const files = Array.from(e.clipboardData.files);
+                    if (files.length === 0) return;
+                    const mediaFile =
+                      files.find(
+                        (f) =>
+                          f.type.startsWith("image/") ||
+                          f.type.startsWith("video/"),
+                      ) || files[0];
+                    if (mediaFile) {
+                      e.preventDefault();
+                      attachMediaFile(mediaFile);
                     }
                   }}
                   placeholder={`Escribe un mensaje (${channelDisplayName}) para ${contact.name}...`}
@@ -1549,10 +1802,10 @@ export const InboxView: React.FC<InboxViewProps> = ({
                   </span>
                 </button>
 
-                {/* Botón Enviar Mensaje */}
+                {/* Botón Enviar Mensaje de Texto */}
                 <button
                   onClick={handleSend}
-                  disabled={!inputText.trim() && !attachedImageUrl}
+                  disabled={!inputText.trim()}
                   aria-label="Enviar mensaje"
                   className="p-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl transition-all disabled:opacity-40 cursor-pointer shadow-md shadow-emerald-700/20 active:scale-95 shrink-0 flex items-center justify-center"
                 >
