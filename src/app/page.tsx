@@ -480,16 +480,32 @@ export default function HomePage() {
     (acc, c) => acc + (c.unreadCount || 0),
     0,
   );
+
   // Handle Send Message
   const handleSendMessage = async (
     conversationId: string,
     text: string,
     aiGenerated: boolean = false,
     mediaUrl?: string,
-  ) => {
+  ): Promise<void> => {
     const timestamp = formatTime();
     const conv = conversations.find((c) => c.id === conversationId);
     if (!conv) return;
+
+    const esAudioSimulado = !!mediaUrl && mediaUrl.startsWith("data:audio/");
+    const esImagen = !!mediaUrl && mediaUrl.startsWith("data:image/");
+    const esVideo = !!mediaUrl && mediaUrl.startsWith("data:video/");
+    const esDocumento = !!mediaUrl && !esAudioSimulado && !esImagen && !esVideo;
+
+    const detectedMediaType = esVideo
+      ? "video"
+      : esImagen
+        ? "image"
+        : esAudioSimulado
+          ? "audio"
+          : esDocumento
+            ? "document"
+            : undefined;
 
     const newMsg: Message = {
       id: `m_${Date.now()}`,
@@ -502,6 +518,7 @@ export default function HomePage() {
       status: "sent",
       aiGenerated,
       mediaUrl,
+      ...(detectedMediaType ? { mediaType: detectedMediaType } : {}),
     };
 
     // Update Messages Map
@@ -509,6 +526,15 @@ export default function HomePage() {
       ...prev,
       [conversationId]: [...(prev[conversationId] || []), newMsg],
     }));
+
+    // Etiqueta para la lista izquierda de conversaciones
+    const previewLabel = mediaUrl
+      ? esVideo
+        ? `🎥 ${text || "Video adjunto"}`
+        : esAudioSimulado
+          ? `🎙️ ${text || "Nota de voz"}`
+          : `📷 ${text || "Imagen adjunta"}`
+      : text;
 
     // Update Conversation Last Message & Move to Top in Real-Time
     const nowIso = new Date().toISOString();
@@ -518,7 +544,7 @@ export default function HomePage() {
 
       const updated: Conversation = {
         ...target,
-        lastMessage: mediaUrl ? `📷 ${text || "Imagen adjunta"}` : text,
+        lastMessage: previewLabel,
         lastMessageTime: timestamp,
         unreadCount: 0,
         ...({ updatedAt: nowIso } as any),
@@ -529,8 +555,6 @@ export default function HomePage() {
     });
 
     if (conv.channel === "whatsapp") {
-      // Priorizar el handle si contiene @lid (es el identificador real de WhatsApp).
-      // Si no, usar phone normalizado. Solo si phone no tiene @lid.
       const handleHasLid = isLid(conv.contact.handle || "");
       const phoneHasLid = isLid(conv.contact.phone || "");
       let phone: string;
@@ -541,12 +565,6 @@ export default function HomePage() {
       } else {
         phone = normalizePhone(conv.contact.phone || conv.contact.handle || "");
       }
-
-      const esAudioSimulado = !!mediaUrl && mediaUrl.startsWith("data:audio/");
-      const esImagen = !!mediaUrl && mediaUrl.startsWith("data:image/");
-      const esVideo = !!mediaUrl && mediaUrl.startsWith("data:video/");
-      const esDocumento =
-        !!mediaUrl && !esAudioSimulado && !esImagen && !esVideo;
 
       if (phone && (text.trim() || mediaUrl)) {
         let resultado;
@@ -584,7 +602,6 @@ export default function HomePage() {
         }
 
         if (resultado.ok === false) {
-          // El mensaje quedo en el chat pero NO salio: se marca en rojo.
           setMessagesMap((prev) => ({
             ...prev,
             [conversationId]: (prev[conversationId] || []).map((m) =>
@@ -601,14 +618,25 @@ export default function HomePage() {
       }
     }
 
-    // Asynchronously save to DB (best-effort; la persistencia depende de la API key)
-    apiFetch("/api/messages", {
+    // Evitar que un video muy grande rompa el límite de 16 MB de BSON en MongoDB
+    const isTooLargeForMongo = !!mediaUrl && mediaUrl.length > 12 * 1024 * 1024;
+    const dbPayload = isTooLargeForMongo
+      ? {
+          ...newMsg,
+          mediaUrl: undefined,
+          text:
+            newMsg.text ||
+            (esVideo ? "🎥 [Video enviado]" : "📷 [Archivo enviado]"),
+        }
+      : newMsg;
+
+    await apiFetch("/api/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newMsg),
+      body: JSON.stringify(dbPayload),
     }).catch(() => null);
   };
-
+  ///
   const handleIncomingWhatsAppMessage = async (
     raw: ReceivedWhatsAppMessage,
   ) => {
@@ -619,7 +647,10 @@ export default function HomePage() {
     processedIncomingIdsRef.current.add(messageId);
 
     // Ignorar mensajes de canales, comunidades, grupos o difusiones
-    if (isIgnoredWhatsAppJid(raw.from || "") || isIgnoredWhatsAppJid(raw.fromName || "")) {
+    if (
+      isIgnoredWhatsAppJid(raw.from || "") ||
+      isIgnoredWhatsAppJid(raw.fromName || "")
+    ) {
       return;
     }
 
