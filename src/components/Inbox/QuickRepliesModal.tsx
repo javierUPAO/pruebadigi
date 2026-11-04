@@ -8,7 +8,7 @@ import { INITIAL_QUICK_REPLIES } from '../../mockData';
 import { 
   Zap, Plus, Trash2, Image as ImageIcon, Check, X, Eye, 
   UploadCloud, FolderOpen, RotateCcw, AlertCircle, Undo2,
-  Copy, Search, CheckCheck, Star, Hand, DollarSign, Tag, Wrench
+  Copy, Search, CheckCheck, Star, Hand, Coins, Tag, Wrench
 } from 'lucide-react';
 import { Button, Modal } from '../ui';
 
@@ -24,7 +24,7 @@ const LOCAL_STORAGE_QUICK_REPLIES_KEY = 'xio_crm_quick_replies_v2';
 const CATEGORIES: { key: string; label: string; icon: React.ElementType; color: string }[] = [
   { key: 'all', label: 'Todas', icon: Star, color: 'bg-slate-100 text-slate-800' },
   { key: 'saludo', label: 'Saludos', icon: Hand, color: 'bg-emerald-100 text-emerald-800' },
-  { key: 'ventas', label: 'Ventas', icon: DollarSign, color: 'bg-blue-100 text-blue-800' },
+  { key: 'ventas', label: 'Ventas', icon: Coins, color: 'bg-blue-100 text-blue-800' },
   { key: 'precios', label: 'Precios', icon: Tag, color: 'bg-purple-100 text-purple-800' },
   { key: 'soporte', label: 'Soporte', icon: Wrench, color: 'bg-amber-100 text-amber-800' },
   { key: 'general', label: 'General', icon: Zap, color: 'bg-slate-100 text-slate-700' }
