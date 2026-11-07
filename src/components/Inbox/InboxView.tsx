@@ -15,7 +15,7 @@ import {
   Phone,
   Mail,
   Tag,
-  DollarSign,
+  Coins,
   TrendingUp,
   CheckCircle,
   Clock,
@@ -2000,10 +2000,10 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
             <div className="flex items-center justify-between text-xs pt-1">
               <span className="text-slate-500 font-semibold flex items-center gap-1">
-                <DollarSign className="w-3 h-3" /> Valor Estimado:
+                <Coins className="w-3.5 h-3.5 text-amber-500" /> Valor Estimado:
               </span>
               <span className="font-black text-emerald-600 text-sm">
-                ${contact.dealValue.toLocaleString()} USD
+                S/ {contact.dealValue.toLocaleString()}
               </span>
             </div>
           </CollapsibleSection>

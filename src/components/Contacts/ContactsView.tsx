@@ -10,7 +10,7 @@ import {
   Users,
   Plus,
   Search,
-  DollarSign,
+  Coins,
   Sparkles,
   Mail,
   Tag,
@@ -269,7 +269,7 @@ const MobileContactCard: React.FC<{
           </div>
         </div>
         <span className="shrink-0 text-slate-900 font-black text-xs tracking-tight bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200">
-          💰 ${contact.dealValue.toLocaleString()}
+          💰 S/ {contact.dealValue.toLocaleString()}
         </span>
       </div>
 
@@ -1103,7 +1103,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
                 TOTAL PIPELINE:
               </span>
               <span className="font-black text-slate-900 text-sm">
-                ${totalPipelineValue.toLocaleString()} USD
+                S/ {totalPipelineValue.toLocaleString()}
               </span>
             </div>
             <div className="w-px h-6 bg-slate-200" />
@@ -1112,7 +1112,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
                 VENTAS GANADAS:
               </span>
               <span className="font-black text-emerald-600 text-sm">
-                ${totalWonValue.toLocaleString()} USD
+                S/ {totalWonValue.toLocaleString()}
               </span>
             </div>
           </div>
@@ -1227,8 +1227,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
                           </span>
                         </h3>
                         <p className="text-[11px] font-bold text-slate-600 mt-0.5 flex items-center gap-1">
-                          <DollarSign className="w-3 h-3" /> $
-                          {stageTotal.toLocaleString()} USD
+                          <Coins className="w-3 h-3 text-amber-500" /> S/ {stageTotal.toLocaleString()}
                         </p>
                       </div>
                     </div>
@@ -1300,9 +1299,8 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
                                 </div>
 
                                 <span className="text-slate-900 font-black text-[11px] shrink-0 tracking-tight bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200 flex items-center gap-0.5">
-                                  <DollarSign className="w-2.5 h-2.5 shrink-0" />
                                   <span>
-                                    {contact.dealValue.toLocaleString()}
+                                    S/ {contact.dealValue.toLocaleString()}
                                   </span>
                                 </span>
                               </div>
@@ -1486,7 +1484,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
                         </span>
                         <span className="flex items-center gap-2 shrink-0">
                           <span className="text-[11px] font-bold text-slate-600 hidden sm:inline">
-                            ${stageTotal.toLocaleString()}
+                            S/ {stageTotal.toLocaleString()}
                           </span>
                           <ChevronDown
                             className={`w-4 h-4 text-slate-500 transition-transform ${isOpen ? "rotate-180" : ""}`}
@@ -1498,7 +1496,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
                     {isOpen && (
                       <div id={panelId} className="p-3.5 pt-0 space-y-3">
                         <p className="text-[11px] font-bold text-slate-600 sm:hidden">
-                          ${stageTotal.toLocaleString()} USD
+                          S/ {stageTotal.toLocaleString()}
                         </p>
                         {stageContacts.length === 0 ? (
                           <div className="p-6 text-center text-slate-400 text-xs border border-dashed border-slate-300 rounded-2xl bg-white/60 font-medium">
@@ -1606,7 +1604,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
                   </th>
                   <th className="px-3 py-3">
                     <span className="flex items-center gap-1">
-                      <DollarSign className="w-3 h-3" /> Valor Ideal
+                      <Coins className="w-3 h-3 text-amber-500" /> Valor Ideal
                     </span>
                   </th>
                   <th className="px-3 py-3">
@@ -1724,8 +1722,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
                     </td>
                     <td className="px-3 py-3 font-bold text-slate-900">
                       <span className="flex items-center gap-1 whitespace-nowrap">
-                        <DollarSign className="w-3 h-3" /> $
-                        {contact.dealValue.toLocaleString()} USD
+                        <Coins className="w-3 h-3 text-amber-500" /> S/ {contact.dealValue.toLocaleString()}
                       </span>
                     </td>
                     <td className="px-3 py-3">
@@ -1874,8 +1871,8 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
                         Valor Ideal
                       </p>
                       <p className="inline-flex items-center gap-1 text-sm font-extrabold text-slate-900">
-                        <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
-                        {contact.dealValue.toLocaleString()} USD
+                        <Coins className="h-3.5 w-3.5 text-amber-500" />
+                        S/ {contact.dealValue.toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -2096,7 +2093,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
               <option value="messenger">Messenger</option>
             </Select>
             <Input
-              label="Valor Deal ($ USD)"
+              label="Valor Deal (S/ PEN)"
               type="number"
               value={formData.dealValue}
               onChange={(e) =>

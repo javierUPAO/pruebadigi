@@ -1,8 +1,7 @@
 import React from 'react';
 import {
   MessageSquare, LayoutDashboard, Target, Megaphone, Zap, TrendingUp, X,
-  Smartphone, Rocket, Shield, Building2, MessageCircle, Bot, Sparkles, Leaf, Package,
-  Calendar, RefreshCw, Globe
+  Smartphone, Rocket, Sparkles
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -160,43 +159,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           );
         })}
-      </div>
-
-      {/* Internal Management Status Panel */}
-      <div className="p-3.5 m-3 bg-gradient-to-b from-slate-900 to-slate-950 rounded-2xl border border-slate-800/90 text-xs space-y-2.5 shadow-xl">
-        <div className="flex items-center justify-between">
-          <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold rounded-full uppercase tracking-wider flex items-center gap-1 border border-emerald-500/30">
-            <Shield className="w-2.5 h-2.5" />
-            <span>Gestión Interna</span>
-          </span>
-          <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
-            <Building2 className="w-2.5 h-2.5" /> XIO Pro
-          </span>
-        </div>
-
-        <div className="space-y-1.5 text-slate-300 text-[11px] font-medium">
-          <div className="flex items-center justify-between">
-            <span className="text-slate-400 flex items-center gap-1"><MessageCircle className="w-3 h-3" /> WhatsApp Web:</span>
-            <span className="text-emerald-400 font-bold flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Conectado (4)</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-slate-400 flex items-center gap-1"><Bot className="w-3 h-3" /> Motor Gemini IA:</span>
-            <span className="text-indigo-300 font-bold flex items-center gap-1"><Sparkles className="w-3 h-3" /> Activo v3.6</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-slate-400 flex items-center gap-1"><Leaf className="w-3 h-3" /> Base de Datos:</span>
-            <span className="text-teal-400 font-bold flex items-center gap-1"><Package className="w-3 h-3" /> MongoDB Ready</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-slate-400 flex items-center gap-1"><Calendar className="w-3 h-3" /> Google Calendar:</span>
-            <span className="text-emerald-400 font-bold flex items-center gap-1"><RefreshCw className="w-3 h-3" /> Sincronizado</span>
-          </div>
-        </div>
-
-        <div className="pt-2 border-t border-slate-800/80 text-[10px] text-slate-500 flex items-center justify-between">
-          <span className="flex items-center gap-1"><Globe className="w-3 h-3" /> Servidor Next.js</span>
-          <span className="font-mono text-emerald-400 font-bold flex items-center gap-1"><Rocket className="w-3 h-3" /> 3000-OK</span>
-        </div>
       </div>
       </aside>
     </>
