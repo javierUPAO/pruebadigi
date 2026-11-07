@@ -12,6 +12,7 @@ interface WhatsAppConnectViewProps {
   connectionStatus?: 'connected' | 'qr-ready' | 'disconnected';
   qrData?: QrData | null;
   onRequestQr?: () => void;
+  onClose?: () => void;
   /** Cierra la sesion actual en el servicio para poder vincular otra cuenta. */
   onDisconnect?: () => Promise<void> | void;
 }
@@ -20,6 +21,7 @@ export function WhatsAppConnectView({
   connectionStatus = 'disconnected',
   qrData = null,
   onRequestQr,
+  onClose,
   onDisconnect,
 }: WhatsAppConnectViewProps) {
   const [timeLeft, setTimeLeft] = useState<number>(0);
@@ -79,8 +81,9 @@ export function WhatsAppConnectView({
   const isExpired = timeLeft <= 0 && qrData?.expiresAt;
 
   return (
-    <div className="flex h-screen w-screen items-center justify-center bg-slate-950 px-4">
-      <div className="w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={onClose}>
+    <div className="relative w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <button onClick={onClose} className="absolute top-3 right-3 text-slate-400 hover:text-white text-xl leading-none">✕</button>
         <h1 className="text-lg font-bold text-white">Conecta tu WhatsApp Business</h1>
         <p className="mt-2 text-sm text-slate-400">
           Escanea el código con WhatsApp para vincular tu cuenta y empezar a recibir mensajes.
