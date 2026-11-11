@@ -376,3 +376,19 @@ model WebhookConfig {
 
   @@map("webhook_config")
 }
+
+model Category {
+  id_categoria  Int        @id @default(autoincrement())
+  nombre        String
+  tipo          Int        @default(1) // 1: Categoria, 0: Subcategoria
+  padre_id      Int?
+  
+  // Relación reflexiva: si se borra el padre, se borran las subcategorías automáticamente
+  padre         Category?  @relation("CategoriaSubcategorias", fields: [padre_id], references: [id_categoria], onDelete: Cascade)
+  subcategorias Category[] @relation("CategoriaSubcategorias")
+
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@map("categories")
+}

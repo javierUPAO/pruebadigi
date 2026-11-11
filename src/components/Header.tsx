@@ -19,6 +19,7 @@ import {
   Instagram,
   Twitter,
   ChevronRight,
+  Settings,
 } from "lucide-react";
 import { Conversation } from "@/types";
 import { AI_MODEL_NAME, XIO_EXTENSION_VERSION } from "@/lib/constants";
@@ -95,6 +96,12 @@ export const Header: React.FC<HeaderProps> = ({
           icon: TrendingUp,
           title: "Métricas, Analítica & Rendimiento",
           subtitle: "Cuadros de mando, conversiones y tiempos de respuesta",
+        };
+      case "config":
+        return {
+          icon: Settings,
+          title: "Configuración del Sistema",
+          subtitle: "Gestión de categorías, subcategorías y parámetros del CRM",
         };
       default:
         return {
