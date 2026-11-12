@@ -344,14 +344,15 @@ model AutomationAction {
 // ---------------------------------------------------------------------------
 
 model QuickReply {
-  id        String   @id
-  title     String
-  emoji     String   @default("")
-  text      String   @default("")
-  imageUrl  String?  @map("image_url")
-  category  String   @default("general")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id          String   @id
+  title       String
+  emoji       String   @default("")
+  text        String   @default("")
+  imageUrl    String?  @map("image_url")
+  category    String   @default("general")
+  subcategory String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@map("quick_replies")
 }

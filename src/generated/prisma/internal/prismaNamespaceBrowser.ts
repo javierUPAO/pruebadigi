@@ -316,6 +316,7 @@ export const QuickReplyScalarFieldEnum = {
   text: 'text',
   imageUrl: 'imageUrl',
   category: 'category',
+  subcategory: 'subcategory',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

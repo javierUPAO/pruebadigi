@@ -1,24 +1,46 @@
-import { z } from 'zod';
-import { parseScheduledAt } from '@/lib/time';
-const ROLES = ['Administrador', 'Empleado'] as const
+import { z } from "zod";
+import { parseScheduledAt } from "@/lib/time";
+const ROLES = ["Administrador", "Empleado"] as const;
 
 // Shared enums (must mirror src/types.ts and the Mongoose schemas)
-const socialChannel = z.enum(['whatsapp', 'instagram', 'twitter', 'messenger', 'email']);
-const leadSentiment = z.enum(['positive', 'neutral', 'urgent', 'churn_risk']);
-const pipelineStage = z.enum(['lead', 'qualified', 'negotiation', 'closed_won', 'closed_lost']);
-const conversationStatus = z.enum(['open', 'pending', 'resolved']);
-const campaignStatus = z.enum([
-  'draft',
-  'scheduled',
-  'running',
-  'paused',
-  'completed',
-  'failed',
-  'cancelled',
+const socialChannel = z.enum([
+  "whatsapp",
+  "instagram",
+  "twitter",
+  "messenger",
+  "email",
 ]);
-const automationTrigger = z.enum(['message_received', 'lead_created', 'tag_added', 'stage_changed']);
-const automationActionType = z.enum(['send_ai_reply', 'add_tag', 'change_stage', 'call_webhook', 'assign_agent']);
-
+const leadSentiment = z.enum(["positive", "neutral", "urgent", "churn_risk"]);
+const pipelineStage = z.enum([
+  "lead",
+  "qualified",
+  "negotiation",
+  "closed_won",
+  "closed_lost",
+]);
+const conversationStatus = z.enum(["open", "pending", "resolved"]);
+const campaignStatus = z.enum([
+  "draft",
+  "scheduled",
+  "running",
+  "paused",
+  "completed",
+  "failed",
+  "cancelled",
+]);
+const automationTrigger = z.enum([
+  "message_received",
+  "lead_created",
+  "tag_added",
+  "stage_changed",
+]);
+const automationActionType = z.enum([
+  "send_ai_reply",
+  "add_tag",
+  "change_stage",
+  "call_webhook",
+  "assign_agent",
+]);
 
 const contactInteractions = z
   .object({
@@ -31,11 +53,29 @@ const contactInteractions = z
 
 const contactFields = {
   id: z.string().min(1).optional(),
-  name: z.string().min(1).max(50).regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'El nombre solo puede contener letras, espacios, guiones y apóstrofes'),
+  name: z
+    .string()
+    .min(1)
+    .max(50)
+    .regex(
+      /^[a-zA-ZÀ-ÿ\s'-]+$/,
+      "El nombre solo puede contener letras, espacios, guiones y apóstrofes",
+    ),
   avatar: z.string().optional(),
   handle: z.string().min(1),
-  phone: z.string().max(20).regex(/^[\d\s+()-]*$/, 'El teléfono solo puede contener números, espacios y + ( ) -').optional(),
-  email: z.string().email('Correo electrónico inválido').optional().or(z.literal('')),
+  phone: z
+    .string()
+    .max(20)
+    .regex(
+      /^[\d\s+()-]*$/,
+      "El teléfono solo puede contener números, espacios y + ( ) -",
+    )
+    .optional(),
+  email: z
+    .string()
+    .email("Correo electrónico inválido")
+    .optional()
+    .or(z.literal("")),
   channel: socialChannel.optional(),
   tags: z.array(z.string()).optional(),
   sentiment: leadSentiment.optional(),
@@ -57,7 +97,6 @@ export const contactUpdateSchema = z
   .partial()
   .extend({ id: z.string().min(1) })
   .strict();
-
 
 const conversationFields = {
   id: z.string().min(1).optional(),
@@ -107,11 +146,14 @@ const campaignFields = {
     .string()
     .nullable()
     .optional()
-    .refine((v) => v === null || v === undefined || parseScheduledAt(v) !== null, {
-      message:
-        'Fecha de programacion invalida. Usa "2026-09-25T14:30" (hora local del negocio) ' +
-        'o un instante con zona explicita ("2026-09-25T19:30:00Z").',
-    }),
+    .refine(
+      (v) => v === null || v === undefined || parseScheduledAt(v) !== null,
+      {
+        message:
+          'Fecha de programacion invalida. Usa "2026-09-25T14:30" (hora local del negocio) ' +
+          'o un instante con zona explicita ("2026-09-25T19:30:00Z").',
+      },
+    ),
   createdAt: z.string().optional(),
 };
 
@@ -121,12 +163,14 @@ const campaignFields = {
  * nadie lo notara. Es justo el fallo silencioso que estamos arreglando, y no
  * vamos a dejar abierta la puerta para volver a crearlo.
  */
-const exigeFechaSiEstaProgramada = (datos: { status?: string; scheduledAt?: string | null }) =>
-  datos.status !== 'scheduled' || !!datos.scheduledAt;
+const exigeFechaSiEstaProgramada = (datos: {
+  status?: string;
+  scheduledAt?: string | null;
+}) => datos.status !== "scheduled" || !!datos.scheduledAt;
 
 const MENSAJE_SIN_FECHA = {
-  message: 'Una campana programada necesita fecha y hora de lanzamiento.',
-  path: ['scheduledAt'],
+  message: "Una campana programada necesita fecha y hora de lanzamiento.",
+  path: ["scheduledAt"],
 };
 
 export const campaignCreateSchema = z
@@ -171,7 +215,6 @@ export const automationUpdateSchema = z
   .extend({ id: z.string().min(1) })
   .strict();
 
-
 const segmentFields = {
   id: z.string().min(1).optional(),
   name: z.string().min(1),
@@ -192,53 +235,78 @@ export const segmentUpdateSchema = z
   .extend({ id: z.string().min(1) })
   .strict();
 
-
 // ----- Users -----
 const userFields = {
   id: z.string().min(1).optional(),
-   name: z.string({
-    error: (issue) => issue.input === undefined ? 'Username is required' : 'Username must be a string'
-  }).min(3).max(30).regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'El nombre solo puede contener letras, espacios, guiones y apóstrofes'),
-  password: z.string({
-    error: (issue) => issue.input === undefined ? 'Password is required' : 'Password must be a string'
-  }).min(8),
-  email: z.email({
-    error: (issue) => issue.input === undefined ? 'Email is required' : 'This is not a valid email'
-  }).max(254, 'Email is too long'),
+  name: z
+    .string({
+      error: (issue) =>
+        issue.input === undefined
+          ? "Username is required"
+          : "Username must be a string",
+    })
+    .min(3)
+    .max(30)
+    .regex(
+      /^[a-zA-ZÀ-ÿ\s'-]+$/,
+      "El nombre solo puede contener letras, espacios, guiones y apóstrofes",
+    ),
+  password: z
+    .string({
+      error: (issue) =>
+        issue.input === undefined
+          ? "Password is required"
+          : "Password must be a string",
+    })
+    .min(8),
+  email: z
+    .email({
+      error: (issue) =>
+        issue.input === undefined
+          ? "Email is required"
+          : "This is not a valid email",
+    })
+    .max(254, "Email is too long"),
   role: z.enum(ROLES),
-  avatarUrl: z.string().max(30)
-}
+  avatarUrl: z.string().max(30),
+};
 
 const userLoginFields = {
   password: z.string({
-    error: (issue) => issue.input === undefined ? 'Password is required' : 'Password must be a string'
+    error: (issue) =>
+      issue.input === undefined
+        ? "Password is required"
+        : "Password must be a string",
   }),
   email: z.email({
-    error: (issue) => issue.input === undefined ? 'Email is required' : 'This is not a valid email'
+    error: (issue) =>
+      issue.input === undefined
+        ? "Email is required"
+        : "This is not a valid email",
   }),
-}
+};
 
-  export const userCreateSchema = z.object(userFields).strict()
-export const userLoginSchema = z.object(userLoginFields).strict()
+export const userCreateSchema = z.object(userFields).strict();
+export const userLoginSchema = z.object(userLoginFields).strict();
 
 export const userUpdateSchema = z
   .object(userFields)
   .partial()
   .extend({ id: z.string().min(3) })
-  .strict()
-
+  .strict();
 
 // ----- Quick Reply -----
 
-const quickReplyCategory = z.enum(['saludo', 'ventas', 'precios', 'soporte', 'general']);
+const quickReplyCategory = z.string().min(1).default("all");
 
 const quickReplyFields = {
   id: z.string().min(1).optional(),
   title: z.string().min(1),
   emoji: z.string().max(8).optional(),
   text: z.string().min(1),
-  imageUrl: z.string().optional(),
+  imageUrl: z.string().optional().nullable(),
   category: quickReplyCategory.optional(),
+  subcategory: z.string().optional().nullable(),
 };
 
 export const quickReplyCreateSchema = z.object(quickReplyFields).strict();
@@ -270,7 +338,7 @@ export const tagCreateSchema = z
     name: z.string().min(1).max(60),
     color: z
       .string()
-      .regex(/^#[0-9a-fA-F]{6}$/, 'Color hex invalido (formato #rrggbb)')
+      .regex(/^#[0-9a-fA-F]{6}$/, "Color hex invalido (formato #rrggbb)")
       .optional(),
   })
   .strict();
@@ -279,7 +347,7 @@ const apiKeyPermission = z
   .string()
   .min(1)
   .max(40)
-  .regex(/^[a-z_]+(:[a-z_]+)?$/, 'Permiso con formato invalido');
+  .regex(/^[a-z_]+(:[a-z_]+)?$/, "Permiso con formato invalido");
 
 export const apiKeyCreateSchema = z
   .object({
