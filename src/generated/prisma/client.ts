@@ -136,3 +136,8 @@ export type PresetImage = Prisma.PresetImageModel
  * 
  */
 export type WebhookConfig = Prisma.WebhookConfigModel
+/**
+ * Model Category
+ * 
+ */
+export type Category = Prisma.CategoryModel

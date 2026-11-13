@@ -69,7 +69,8 @@ export const ModelName = {
   AutomationAction: 'AutomationAction',
   QuickReply: 'QuickReply',
   PresetImage: 'PresetImage',
-  WebhookConfig: 'WebhookConfig'
+  WebhookConfig: 'WebhookConfig',
+  Category: 'Category'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -315,6 +316,7 @@ export const QuickReplyScalarFieldEnum = {
   text: 'text',
   imageUrl: 'imageUrl',
   category: 'category',
+  subcategory: 'subcategory',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -342,6 +344,18 @@ export const WebhookConfigScalarFieldEnum = {
 } as const
 
 export type WebhookConfigScalarFieldEnum = (typeof WebhookConfigScalarFieldEnum)[keyof typeof WebhookConfigScalarFieldEnum]
+
+
+export const CategoryScalarFieldEnum = {
+  id_categoria: 'id_categoria',
+  nombre: 'nombre',
+  tipo: 'tipo',
+  padre_id: 'padre_id',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CategoryScalarFieldEnum = (typeof CategoryScalarFieldEnum)[keyof typeof CategoryScalarFieldEnum]
 
 
 export const SortOrder = {

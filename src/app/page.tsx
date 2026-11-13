@@ -61,6 +61,7 @@ import { AutomationView } from "@/components/Automation/AutomationView";
 import { AnalyticsView } from "@/components/Analytics/AnalyticsView";
 import { GithubModal } from "@/components/GithubModal";
 import { LoginView } from "@/components/Login/LoginView";
+import { ConfigView } from "@/components/Config/ConfigView";
 import { User } from "../generated/prisma/client";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { X } from "lucide-react";
@@ -1833,6 +1834,8 @@ export default function HomePage() {
             />
           )}
 
+          {activeTab === "config" && <ConfigView />}
+
           {/* Seccion API REST, Webhooks & MongoDB ocultada (para reactivarse mas adelante)
           {activeTab === "api-github" && (
             <ApiGithubView
@@ -1855,14 +1858,13 @@ export default function HomePage() {
       />
       {/* WhatsApp Connect Modal */}
       {showWhatsappModal && (
-        
-            <WhatsAppConnectView
-              connectionStatus={whatsappStatus?.connectionStatus}
-              qrData={whatsappStatus?.qrData}
-              onRequestQr={handleRequestQr}
-              onDisconnect={handleDisconnectWhatsapp}
-              onClose={() => setShowWhatsappModal(false)}
-            />
+        <WhatsAppConnectView
+          connectionStatus={whatsappStatus?.connectionStatus}
+          qrData={whatsappStatus?.qrData}
+          onRequestQr={handleRequestQr}
+          onDisconnect={handleDisconnectWhatsapp}
+          onClose={() => setShowWhatsappModal(false)}
+        />
       )}
     </div>
   );

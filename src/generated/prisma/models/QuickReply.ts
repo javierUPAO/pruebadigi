@@ -31,6 +31,7 @@ export type QuickReplyMinAggregateOutputType = {
   text: string | null
   imageUrl: string | null
   category: string | null
+  subcategory: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -42,6 +43,7 @@ export type QuickReplyMaxAggregateOutputType = {
   text: string | null
   imageUrl: string | null
   category: string | null
+  subcategory: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -53,6 +55,7 @@ export type QuickReplyCountAggregateOutputType = {
   text: number
   imageUrl: number
   category: number
+  subcategory: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -66,6 +69,7 @@ export type QuickReplyMinAggregateInputType = {
   text?: true
   imageUrl?: true
   category?: true
+  subcategory?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -77,6 +81,7 @@ export type QuickReplyMaxAggregateInputType = {
   text?: true
   imageUrl?: true
   category?: true
+  subcategory?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -88,6 +93,7 @@ export type QuickReplyCountAggregateInputType = {
   text?: true
   imageUrl?: true
   category?: true
+  subcategory?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -172,6 +178,7 @@ export type QuickReplyGroupByOutputType = {
   text: string
   imageUrl: string | null
   category: string
+  subcategory: string | null
   createdAt: Date
   updatedAt: Date
   _count: QuickReplyCountAggregateOutputType | null
@@ -204,6 +211,7 @@ export type QuickReplyWhereInput = {
   text?: Prisma.StringFilter<"QuickReply"> | string
   imageUrl?: Prisma.StringNullableFilter<"QuickReply"> | string | null
   category?: Prisma.StringFilter<"QuickReply"> | string
+  subcategory?: Prisma.StringNullableFilter<"QuickReply"> | string | null
   createdAt?: Prisma.DateTimeFilter<"QuickReply"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"QuickReply"> | Date | string
 }
@@ -215,6 +223,7 @@ export type QuickReplyOrderByWithRelationInput = {
   text?: Prisma.SortOrder
   imageUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   category?: Prisma.SortOrder
+  subcategory?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -229,6 +238,7 @@ export type QuickReplyWhereUniqueInput = Prisma.AtLeast<{
   text?: Prisma.StringFilter<"QuickReply"> | string
   imageUrl?: Prisma.StringNullableFilter<"QuickReply"> | string | null
   category?: Prisma.StringFilter<"QuickReply"> | string
+  subcategory?: Prisma.StringNullableFilter<"QuickReply"> | string | null
   createdAt?: Prisma.DateTimeFilter<"QuickReply"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"QuickReply"> | Date | string
 }, "id">
@@ -240,6 +250,7 @@ export type QuickReplyOrderByWithAggregationInput = {
   text?: Prisma.SortOrder
   imageUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   category?: Prisma.SortOrder
+  subcategory?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.QuickReplyCountOrderByAggregateInput
@@ -257,6 +268,7 @@ export type QuickReplyScalarWhereWithAggregatesInput = {
   text?: Prisma.StringWithAggregatesFilter<"QuickReply"> | string
   imageUrl?: Prisma.StringNullableWithAggregatesFilter<"QuickReply"> | string | null
   category?: Prisma.StringWithAggregatesFilter<"QuickReply"> | string
+  subcategory?: Prisma.StringNullableWithAggregatesFilter<"QuickReply"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"QuickReply"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"QuickReply"> | Date | string
 }
@@ -268,6 +280,7 @@ export type QuickReplyCreateInput = {
   text?: string
   imageUrl?: string | null
   category?: string
+  subcategory?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -279,6 +292,7 @@ export type QuickReplyUncheckedCreateInput = {
   text?: string
   imageUrl?: string | null
   category?: string
+  subcategory?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -290,6 +304,7 @@ export type QuickReplyUpdateInput = {
   text?: Prisma.StringFieldUpdateOperationsInput | string
   imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   category?: Prisma.StringFieldUpdateOperationsInput | string
+  subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -301,6 +316,7 @@ export type QuickReplyUncheckedUpdateInput = {
   text?: Prisma.StringFieldUpdateOperationsInput | string
   imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   category?: Prisma.StringFieldUpdateOperationsInput | string
+  subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -312,6 +328,7 @@ export type QuickReplyCreateManyInput = {
   text?: string
   imageUrl?: string | null
   category?: string
+  subcategory?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -323,6 +340,7 @@ export type QuickReplyUpdateManyMutationInput = {
   text?: Prisma.StringFieldUpdateOperationsInput | string
   imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   category?: Prisma.StringFieldUpdateOperationsInput | string
+  subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -334,6 +352,7 @@ export type QuickReplyUncheckedUpdateManyInput = {
   text?: Prisma.StringFieldUpdateOperationsInput | string
   imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   category?: Prisma.StringFieldUpdateOperationsInput | string
+  subcategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -345,6 +364,7 @@ export type QuickReplyCountOrderByAggregateInput = {
   text?: Prisma.SortOrder
   imageUrl?: Prisma.SortOrder
   category?: Prisma.SortOrder
+  subcategory?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -356,6 +376,7 @@ export type QuickReplyMaxOrderByAggregateInput = {
   text?: Prisma.SortOrder
   imageUrl?: Prisma.SortOrder
   category?: Prisma.SortOrder
+  subcategory?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -367,6 +388,7 @@ export type QuickReplyMinOrderByAggregateInput = {
   text?: Prisma.SortOrder
   imageUrl?: Prisma.SortOrder
   category?: Prisma.SortOrder
+  subcategory?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -380,6 +402,7 @@ export type QuickReplySelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   text?: boolean
   imageUrl?: boolean
   category?: boolean
+  subcategory?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["quickReply"]>
@@ -391,6 +414,7 @@ export type QuickReplySelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   text?: boolean
   imageUrl?: boolean
   category?: boolean
+  subcategory?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["quickReply"]>
@@ -402,6 +426,7 @@ export type QuickReplySelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   text?: boolean
   imageUrl?: boolean
   category?: boolean
+  subcategory?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["quickReply"]>
@@ -413,11 +438,12 @@ export type QuickReplySelectScalar = {
   text?: boolean
   imageUrl?: boolean
   category?: boolean
+  subcategory?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type QuickReplyOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "title" | "emoji" | "text" | "imageUrl" | "category" | "createdAt" | "updatedAt", ExtArgs["result"]["quickReply"]>
+export type QuickReplyOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "title" | "emoji" | "text" | "imageUrl" | "category" | "subcategory" | "createdAt" | "updatedAt", ExtArgs["result"]["quickReply"]>
 
 export type $QuickReplyPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "QuickReply"
@@ -429,6 +455,7 @@ export type $QuickReplyPayload<ExtArgs extends runtime.Types.Extensions.Internal
     text: string
     imageUrl: string | null
     category: string
+    subcategory: string | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["quickReply"]>
@@ -860,6 +887,7 @@ export interface QuickReplyFieldRefs {
   readonly text: Prisma.FieldRef<"QuickReply", 'String'>
   readonly imageUrl: Prisma.FieldRef<"QuickReply", 'String'>
   readonly category: Prisma.FieldRef<"QuickReply", 'String'>
+  readonly subcategory: Prisma.FieldRef<"QuickReply", 'String'>
   readonly createdAt: Prisma.FieldRef<"QuickReply", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"QuickReply", 'DateTime'>
 }

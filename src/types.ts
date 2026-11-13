@@ -1,12 +1,22 @@
-export type SocialChannel = 'whatsapp' | 'instagram' | 'twitter' | 'messenger' | 'email';
+export type SocialChannel =
+  | "whatsapp"
+  | "instagram"
+  | "twitter"
+  | "messenger"
+  | "email";
 
-export type LeadSentiment = 'positive' | 'neutral' | 'urgent' | 'churn_risk';
+export type LeadSentiment = "positive" | "neutral" | "urgent" | "churn_risk";
 
-export type PipelineStage = 'lead' | 'qualified' | 'negotiation' | 'closed_won' | 'closed_lost';
+export type PipelineStage =
+  | "lead"
+  | "qualified"
+  | "negotiation"
+  | "closed_won"
+  | "closed_lost";
 
-const ROLES = ['Administrador', 'Empleado'] as const
+const ROLES = ["Administrador", "Empleado"] as const;
 
-export type Role = typeof ROLES[number]
+export type Role = (typeof ROLES)[number];
 
 export interface ContactInteractions {
   firstReply?: boolean; // 1era Interacción: Respuesta positiva -> Pasa a Cualificados (Rojo)
@@ -34,7 +44,8 @@ export interface QuickReply {
   emoji?: string;
   text: string;
   imageUrl?: string;
-  category?: 'saludo' | 'ventas' | 'precios' | 'soporte' | 'general';
+  category?: string;
+  subcategory?: string;
 }
 
 export interface Contact {
@@ -61,7 +72,7 @@ export interface Contact {
 export interface Message {
   id: string;
   conversationId: string;
-  sender: 'contact' | 'agent' | 'bot';
+  sender: "contact" | "agent" | "bot";
   senderName?: string;
   text: string;
   timestamp: string;
@@ -69,10 +80,10 @@ export interface Message {
   // 'failed' cubre el caso de que el mensaje se guarde pero no llegue a salir
   // al canal (sin credenciales o error del proveedor), para no dar por
   // enviado algo que el destinatario nunca recibio.
-  status: 'sent' | 'delivered' | 'read' | 'failed';
+  status: "sent" | "delivered" | "read" | "failed";
   mediaUrl?: string;
   hasMedia?: boolean;
-  mediaType?: 'image' | 'audio' | 'video' | 'document' | 'sticker';
+  mediaType?: "image" | "audio" | "video" | "document" | "sticker";
   media?: {
     mimetype: string;
     data: string;
@@ -92,7 +103,7 @@ export interface Conversation {
   unreadCount: number;
   lastMessage: string;
   lastMessageTime: string;
-  status: 'open' | 'pending' | 'resolved';
+  status: "open" | "pending" | "resolved";
   assignedAgent: string;
   summary?: string;
 }
@@ -112,17 +123,23 @@ export interface Segment {
 // Ciclo de vida de una campana. Las transiciones validas entre estos estados
 // las impone src/lib/services/campaignStatus.ts, no el front.
 export type CampaignStatus =
-  | 'draft'
-  | 'scheduled'
-  | 'running'
-  | 'paused'
-  | 'completed'
-  | 'failed'
-  | 'cancelled';
+  | "draft"
+  | "scheduled"
+  | "running"
+  | "paused"
+  | "completed"
+  | "failed"
+  | "cancelled";
 
 // Estado de un destinatario dentro de una campana.
 // 'skipped' = nunca se intento (sin direccion en ese canal, canal sin conectar).
-export type RecipientStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'failed' | 'skipped';
+export type RecipientStatus =
+  | "pending"
+  | "sent"
+  | "delivered"
+  | "read"
+  | "failed"
+  | "skipped";
 
 export interface Campaign {
   id: string;
@@ -156,7 +173,7 @@ export interface Campaign {
 export interface AudienceExclusion {
   contactId: string;
   name: string;
-  reason: 'sin_direccion' | 'baja_difusion' | 'otro_canal';
+  reason: "sin_direccion" | "baja_difusion" | "otro_canal";
 }
 
 /** Lo que devuelve la previsualizacion antes de confirmar un envio. */
@@ -181,11 +198,20 @@ export interface CampaignPreview {
 export interface AutomationRule {
   id: string;
   name: string;
-  triggerEvent: 'message_received' | 'lead_created' | 'tag_added' | 'stage_changed';
+  triggerEvent:
+    | "message_received"
+    | "lead_created"
+    | "tag_added"
+    | "stage_changed";
   conditionChannel?: SocialChannel;
   conditionKeyword?: string;
   actions: {
-    type: 'send_ai_reply' | 'add_tag' | 'change_stage' | 'call_webhook' | 'assign_agent';
+    type:
+      | "send_ai_reply"
+      | "add_tag"
+      | "change_stage"
+      | "call_webhook"
+      | "assign_agent";
     targetValue: string;
   }[];
   enabled: boolean;
@@ -235,14 +261,14 @@ export interface AnalyticsData {
 }
 
 export interface User {
-    id: number,
-    name: string,
-    email: string,
-    // La contrasena (su hash) nunca sale de la base: el repositorio la
-    // omite al construir la respuesta y ningun consumidor la necesita.
-    role: Role,
-    avatarUrl: string,
-    created_at: string,
-    updated_at: string
-    // sessions: Sessions[]
+  id: number;
+  name: string;
+  email: string;
+  // La contrasena (su hash) nunca sale de la base: el repositorio la
+  // omite al construir la respuesta y ningun consumidor la necesita.
+  role: Role;
+  avatarUrl: string;
+  created_at: string;
+  updated_at: string;
+  // sessions: Sessions[]
 }
